@@ -1,5 +1,4 @@
 # Week 4
----
 # Git Workflow Practice — Branch, Merge, Fork & Pull Request
 
 Hi! In this document, I'm going to walk you through the four most important things I did when practicing Git collaboration. I'll explain **what** each operation is, **why** we need it, and **exactly which commands I ran** (or which buttons I clicked on GitHub) to make it happen.
@@ -361,3 +360,7 @@ Our practice also demonstrated the **Fork + Pull Request** pattern, which is Git
 - [Git Workflow (Git 工作流程) — Ruan Yifeng](https://www.ruanyifeng.com/blog/2015/12/git-workflow.html) — Explains the three major Git workflows (Git Flow, GitHub Flow, GitLab Flow) in detail.
 - [How Does Git Work? — ByteByteGo](https://bytebytego.com/guides/how-does-git-work/) — A visual guide to Git internals and common operations.
 - [Understanding the GitHub Flow — GitHub Guides](https://guides.github.com/introduction/flow/) — GitHub's official explanation of the GitHub Flow workflow.
+
+
+## AI Agent 
+Claude Code
