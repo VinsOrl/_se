@@ -1,0 +1,10 @@
+[package]
+name = "rust-service"
+version = "0.1.0"
+edition = "2021"
+
+# No external crates on purpose: keeps the build fast and offline-friendly.
+[dependencies]
+
+[profile.release]
+opt-level = 3
