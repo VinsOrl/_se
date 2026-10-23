@@ -1,0 +1,20 @@
+{
+  "name": "week7-todo-app",
+  "version": "1.0.0",
+  "description": "Todo web app with unit, system (API) and e2e tests",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "npm run test:unit && npm run test:system && npm run test:e2e",
+    "test:unit": "node --test \"tests/unit/**/*.test.js\"",
+    "test:system": "node --test \"tests/system/**/*.test.js\"",
+    "test:e2e": "playwright test"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
