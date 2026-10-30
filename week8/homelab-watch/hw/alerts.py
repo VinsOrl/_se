@@ -41,24 +41,28 @@ def send(cfg, text, host="", lines=()):
     return res
 
 
-def process(con, cfg, snap, notes=None, extra=(), send=send):
+def process(con, cfg, snap, notes=None, extra=(), send=send, muted=()):
     """Compare each check with its last known state; send one batched message.
 
     - bad for `min_samples` samples in a row: alert (unless within the cooldown of the last alert)
     - warn <-> crit while alerted: alert again
     - back to ok: recovery message, only if a failure alert was actually sent
     - unchanged: silence
-    Returns the list of message lines.
+    Muted keys are skipped entirely. Returns the list of message lines.
     """
     now, notes = snap["ts"], notes or {}
     cool = cfg["alerts"]["cooldown_minutes"] * 60
     current = {r["key"]: (r["status"], r["text"]) for r in snap["results"]}
-    # checks that vanished (e.g. a failed unit that recovered) count as ok
-    for key, st, text in con.execute("SELECT key, status, text FROM alert_state"):
-        if key not in current and st != "ok":
-            current[key] = ("ok", text)
+    # checks that vanished (e.g. a failed unit that recovered) count as ok, unless a collector
+    # crashed: then its checks are missing for the wrong reason
+    if not any(k.startswith("collector:") for k in current):
+        for key, st, text in con.execute("SELECT key, status, text FROM alert_state"):
+            if key not in current and st != "ok":
+                current[key] = ("ok", text)
     lines, need = [], cfg["alerts"]["min_samples"]
     for key, (st, text) in current.items():
+        if key in muted:  # muted issues still show on the dashboard but never alert
+            continue
         row = con.execute("SELECT status, last_alert, alerted, bad FROM alert_state WHERE key=?",
                           (key,)).fetchone()
         old, last, alerted, bad = row or ("ok", None, 0, 0)
