@@ -133,9 +133,9 @@ def make_handler(cfg, db_path):
                 plans = [p for p in fix.plan(snap, cfg) if p["key"] == key]
                 if not plans:
                     return self.send(404, {"error": "no allowlisted fix for that issue"})
-                _, msgs = fix.apply(con, cfg, snap, collectors.collect_all, mode="auto",
+                notes, msgs = fix.apply(con, cfg, snap, collectors.collect_all, mode="auto",
                                     only=plans[0]["target"])
-                self.send(200, {"messages": msgs or ["attempt limit reached or nothing to do"]})
+                self.send(200, {"messages": msgs or list(notes.values()) or ["attempt limit reached or nothing to do"]})
             finally:
                 con.close()
 

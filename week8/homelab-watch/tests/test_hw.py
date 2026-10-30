@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from hw import alerts, collectors, store
+from hw import alerts, collectors, fix, store
 
 DAY = 86400
 
@@ -115,6 +115,80 @@ class Alerts(unittest.TestCase):
     def test_secret_from_env(self):
         with mock.patch.dict(os.environ, {"HW_URL": "http://e"}):
             self.assertEqual(alerts.secret({"url_env": "HW_URL"}, "url"), "http://e")
+
+
+class Remediation(unittest.TestCase):
+    def setUp(self):
+        self.con = store.connect(":memory:")
+        self.cfg = collectors.load_config("/nonexistent")
+        self.cfg["remediation"].update(enabled=True, mode="auto", fix_units=["web"], settle_seconds=0)
+        self.issue = lambda: {"host": "h", "ts": 1000, "notes": [], "results": [
+            {"section": "S", "key": "unit:web", "status": "warn", "text": "Failed unit: web",
+             "fix": ["unit", "web", "user"]}]}
+
+    def collect_ok(self, cfg):
+        return snap([("unit:web", "ok")])
+
+    def test_not_in_allowlist_is_never_executed(self):
+        with mock.patch.object(fix.subprocess, "run") as run:
+            for argv in (["rm", "-rf", "/"], ["systemctl", "--user", "restart", "other"],
+                         ["docker", "restart", "db"], ["sudo", "reboot"],
+                         ["systemctl", "--user", "restart", "web", "--now"]):
+                ok, msg = fix.run_cmd(argv, self.cfg)
+                self.assertFalse(ok)
+                self.assertIn("refused", msg)
+            run.assert_not_called()
+
+    def test_unlisted_target_not_planned(self):
+        s = self.issue()
+        s["results"][0]["fix"] = ["unit", "sshd", "system"]
+        self.assertEqual(fix.plan(s, self.cfg), [])
+        s["results"][0]["fix"] = ["unit", "-rf", "user"]
+        self.cfg["remediation"]["fix_units"] = ["-rf"]
+        self.assertEqual(fix.plan(s, self.cfg), [])
+
+    def test_dry_run_logs_but_does_not_run(self):
+        with mock.patch.object(fix.subprocess, "run") as run:
+            fix.apply(self.con, self.cfg, self.issue(), self.collect_ok, mode="dry-run")
+        run.assert_not_called()
+        self.assertIn("dry-run", store.fix_log(self.con)[0]["result"])
+        self.assertEqual(store.recent_attempts(self.con, "unit:web", 1000), 0)
+
+    def test_auto_fix_restarts_verifies_logs(self):
+        ran = mock.Mock(returncode=0, stdout="", stderr="")
+        s = self.issue()
+        with mock.patch.object(fix.subprocess, "run", return_value=ran) as run:
+            notes, msgs = fix.apply(self.con, self.cfg, s, self.collect_ok, now=1000)
+        run.assert_called_once()
+        self.assertEqual(run.call_args[0][0], ["systemctl", "--user", "restart", "web"])
+        self.assertEqual(store.fix_log(self.con)[0]["result"], "ok")
+        self.assertEqual(s["status"], "ok")
+        self.assertIn("verified", msgs[0])
+
+    def test_three_failures_then_stop_and_escalate(self):
+        ran = mock.Mock(returncode=0, stdout="", stderr="")
+        still_bad = lambda cfg: self.issue()
+        all_msgs = []
+        with mock.patch.object(fix.subprocess, "run", return_value=ran) as run:
+            for i in range(5):
+                _, msgs = fix.apply(self.con, self.cfg, self.issue(), still_bad, now=1000 + i)
+                all_msgs += msgs
+        self.assertEqual(run.call_count, 3)
+        self.assertEqual(len(all_msgs), 1)
+        self.assertIn("needs a human", all_msgs[0])
+
+    def test_attempts_expire_after_an_hour(self):
+        ran = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch.object(fix.subprocess, "run", return_value=ran) as run:
+            for i in range(3):
+                fix.apply(self.con, self.cfg, self.issue(), lambda c: self.issue(), now=1000 + i)
+            fix.apply(self.con, self.cfg, self.issue(), lambda c: self.issue(), now=1000 + 3700)
+        self.assertEqual(run.call_count, 4)
+
+    def test_token(self):
+        self.assertFalse(fix.token_ok("", ""))
+        self.assertTrue(fix.token_ok("abc", "abc"))
+        self.assertFalse(fix.token_ok("abc", "abd"))
 
 
 if __name__ == "__main__":
