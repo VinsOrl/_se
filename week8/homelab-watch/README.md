@@ -1,55 +1,130 @@
-# homelab-watch pro
+# homelab-watch
 
-Small health monitor for a Linux box: CLI report, SQLite history, local dashboard, webhook
-alerts, opt-in allowlisted self-heal. Python 3.11+, stdlib only, no CDN.
+A small health monitor for your own Linux machine or home server.
 
-## Quickstart (recommended: one live process)
+It watches things like CPU, memory, disks, temperatures, the GPU, Docker containers and
+systemd services. It shows them on a live web page, remembers the last 30 days, and pings you
+(Discord, Telegram or any webhook) when something breaks, and again when it recovers. If you
+choose, it can also restart a crashed service for you, but only the ones you list.
+
+It is one Python program with **no dependencies**: no pip, no database server, no JavaScript
+libraries, no internet needed.
+
+![dashboard](docs/dashboard-1440.jpg)
+
+## What it is, in plain words
+
+Think of it as a smoke detector for your server.
+
+- **It looks around** every few seconds: is the CPU busy, is a disk nearly full, is the GPU hot,
+  did a container die, can I reach my router, does my website still answer, is last night's
+  backup too old?
+- **It shows you** the answer on a dashboard. Healthy things stay quiet and folded away. Only
+  problems get a card at the top, so you see what matters in one glance.
+- **It tells you** when something goes wrong. It waits for the problem to last for a minute
+  before bothering you (so a brief temperature spike does not wake you up), and it never repeats
+  itself every few minutes.
+- **It can fix simple things**, if you allow it. It only ever runs a short, fixed list of
+  commands (restart this unit, restart that container, clean some disk space) and only on names
+  you wrote in the config. It gives up after 3 tries and asks a human.
+
+## What you need
+
+- Linux (built and tested on Ubuntu 24.04) and **Python 3.11 or newer**
+- Optional, used if present, skipped quietly if not: `docker`, `nvidia-smi`, `systemctl`,
+  `journalctl`, `ping`, `apt-get`
+
+## Install
+
+There is nothing to install in the pip sense. Get the folder and run it.
+
 ```bash
-cd homelab-watch
-bin/hw init                  # writes ~/.config/homelab-watch/config.toml (chmod 600)
-$EDITOR ~/.config/homelab-watch/config.toml   # checks, alert targets, thresholds
-bin/hw install-service       # systemd *user* service: restarts on failure
-# dashboard: http://127.0.0.1:8765
+git clone https://github.com/VinsOrl/_se.git
+cd _se/week8/homelab-watch
+bin/hw report          # try it right now, no setup needed
 ```
-`hw serve` does everything by itself: live metrics (CPU/RAM/temps/GPU/network every 2 s, disks,
-Docker, units and network checks every 30 s, apt/backups every 10 min), history in SQLite every
-60 s, alerts and remediation. No timer or `hw collect` needed. Try it first with `bin/hw serve`.
 
-Other commands: `bin/hw report` (no config needed), `bin/hw uninstall`. `python3 -m hw ...` works from
-this directory; put `bin/` on your PATH to type just `hw`.
+To type just `hw` from anywhere, put the `bin/` folder on your PATH or link it:
 
-Headless fallback (no long-running process): `hw install-timer` runs `hw collect --alert` every
-5 min. `hw collect --alert/--fix` exits immediately while `hw serve` is running (lock file), so
-alerts never double-send.
+```bash
+ln -s "$PWD/bin/hw" ~/.local/bin/hw
+```
 
-| Command | What |
+(`python3 -m hw ...` from this folder works too.)
+
+## Set it up (about 3 minutes)
+
+```bash
+hw init                # writes ~/.config/homelab-watch/config.toml with comments
+nano ~/.config/homelab-watch/config.toml     # add what you want to watch
+hw install-service     # runs `hw serve` in the background, restarts it if it crashes
+```
+
+Then open **http://127.0.0.1:8765**. That is the whole setup: one process does everything
+(live checks, history, alerts, dashboard).
+
+Want to try it without installing anything? Run `hw serve` in a terminal and press Ctrl-C to stop.
+
+To keep it running after you log out: `loginctl enable-linger $USER`.
+To remove it: `hw uninstall` (your config and history are kept).
+
+## Using it
+
+| Command | What it does |
 |---|---|
-| `hw report [-o f] [--format md\|json]` | full report |
-| `hw check` | prints problems, exit 0/1/2 = ok/warn/crit |
-| `hw collect [--alert] [--fix]` | sample + store; alert on state change; `--fix` applies remediation in `ask` mode |
-| `hw serve [--host H] [--port P]` | live engine + dashboard, 127.0.0.1:8765 by default |
-| `hw install-service [--port P]` | `hw serve` as a systemd user service (recommended) |
-| `hw test-alert` | send a test message to all configured targets |
-| `hw fix-log` | what the self-heal did / would do |
-| `hw install-timer [--serve]`, `hw uninstall` | headless timer fallback; remove all units |
+| `hw report` | Prints a health report (add `-o file.md` to save it, `--format json` for JSON) |
+| `hw check` | Prints only the problems. Exit code 0 = fine, 1 = warning, 2 = critical (good for scripts) |
+| `hw serve` | Runs the live engine and dashboard (default `127.0.0.1:8765`, change with `--host`, `--port`) |
+| `hw install-service` | Installs `hw serve` as a systemd **user** service (no sudo) |
+| `hw init` | Writes a commented default config |
+| `hw test-alert` | Sends a test message to your alert targets |
+| `hw fix-log` | Shows what self-heal did (or would have done) |
+| `hw collect [--alert] [--fix]` | Takes one sample and stores it. A headless alternative to `serve` |
+| `hw install-timer` | Headless alternative: a timer that runs `hw collect --alert` every 5 minutes |
+| `hw uninstall` | Removes the systemd units |
 
-Missing tools (docker, nvidia-smi, systemd, ...) are skipped with a note, never a crash.
+### The dashboard
 
-## Config example (`~/.config/homelab-watch/config.toml`)
-`hw init` writes a fully commented version. Minimal example:
+- **Top bar**: hostname, a big status pill (OK / N warnings / Critical), a dot that pulses green
+  while the live connection works and turns amber if it falls back to polling, uptime, a light/dark
+  switch.
+- **Tiles** for CPU, RAM, disk, temperature and GPU, each with a bar and a 24 hour sparkline.
+  Hover for exact values, click for a bigger chart (1h / 6h / 24h / 7d).
+- **Needs attention**: one card per problem, with buttons:
+  - **Fix**: run the allowed fix (only in `ask` mode, see below)
+  - **Mute 1h / 24h**: keep it on screen but stop alerts and auto-fix for a while
+  - **Details**: show the last log lines (with a copy button)
+- **Sections** (System, Disks, Docker, Network, ...) are collapsed to one line when healthy,
+  like "Docker: 9 running, 1 exited". Open one to see more, or "Show all".
+- **Run checks / Test alert** buttons at the top, and a **Fix log** drawer once something was fixed.
+
+The buttons that change things need a token. `hw init` creates one in the config
+(`[remediation] token`); the page asks for it once per browser tab. Those buttons only work
+from the same machine.
+
+> **Security note:** the dashboard has no login. It listens on `127.0.0.1` by default, which
+> means only your own machine can open it. If you want to reach it from elsewhere, put it behind
+> a reverse proxy or use Tailscale rather than binding it to the open network.
+
+## Configuration
+
+`hw init` writes a fully commented file at `~/.config/homelab-watch/config.toml`. Everything is
+optional. A small example:
+
 ```toml
 [thresholds]
-disk_warn = 80
+disk_warn = 80            # warn above 80% full (default 85, critical default 95)
 
 [checks]
 ping = ["1.1.1.1"]
 dns = ["example.com"]
+ignore_containers = ["hello-world-test"]
 
 [[checks.http]]
 name = "grafana"
 url = "http://localhost:3000/api/health"
 expect = 200
-fix_container = "grafana"      # optional restart target for remediation
+fix_container = "grafana"      # optional: what self-heal may restart if this fails
 
 [[checks.tcp]]
 host = "localhost"
@@ -62,66 +137,114 @@ max_age_hours = 26
 
 [alerts]
 cooldown_minutes = 30
+min_samples = 2                # must be bad this many checks in a row before it alerts
 [alerts.discord]
-webhook_url_env = "HW_DISCORD_URL"   # or webhook_url = "..."
+webhook_url_env = "HW_DISCORD_URL"   # or webhook_url = "..." directly
 ```
-Status is `warn` above `*_warn` and `crit` above `*_crit`. Failed service/network checks are `crit`.
+
+Each check ends up as `ok`, `warn` or `crit`. Metrics have two thresholds (for example disk
+85 / 95). A failed ping, DNS, HTTP or TCP check counts as `crit`.
+
+### How often things run (`[engine]`)
+
+| Speed | Default | What |
+|---|---|---|
+| fast | 2 s | CPU, load, RAM/swap, temperatures, GPU, network speed |
+| medium | 30 s | disks, Docker, failed units, ping/DNS/HTTP/TCP, top processes |
+| slow | 10 min | pending apt updates, reboot needed, backup age |
+
+History is saved every 60 s and kept for 30 days (`[history] retention_days`).
 
 ## Alerts
-Discord webhook, Telegram bot (`bot_token` + `chat_id`), or generic JSON webhook
-(`{"text", "host", "messages"}`). One message per run, only when a check **changes** state; a
-recovery message follows once the check is ok again (only if its failure alert was sent). A
-check must be bad `min_samples` (default 2) evaluations in a row before it alerts (`[engine] eval`
-is 30 s in `hw serve`, one run per `hw collect`), and a check that fails again within the cooldown
-of its last alert is not re-announced. Secrets can
-come from env vars (`*_env` keys). `hw` warns if the config file is world-readable.
-Systemd runs the service without your shell env: put env vars in the unit with
-`systemctl --user edit hw-serve.service` (`Environment=...`) or just use the config file.
 
-## Dashboard
-![dashboard](docs/dashboard-1440.jpg)
+Supported: **Discord webhook**, **Telegram bot**, or a **generic JSON webhook**.
 
-Live via Server-Sent Events (`/events`, only changed results are pushed); the page falls back to
-polling `/api/current` every 5 s if the stream drops and reconnects by itself. The header dot is
-green when live, amber when polling. API endpoints read the engine's in-memory cache, so they
-answer in milliseconds. KPI tiles open a 1h/6h/24h/7d chart; healthy sections collapse to one line.
-Phone layout: `docs/dashboard-390.jpg`.
+You get a message when a check turns bad, and one when it is OK again. In between, silence.
+A short flicker never sends anything, and the cooldown stops a flapping check from spamming you.
+Secrets can come from environment variables (`*_env` keys) instead of the file, and `hw` warns
+you if your config file is readable by other users (`chmod 600` it; `hw init` does).
 
-Endpoints: `/`, `/events`, `/api/current`, `/api/history?hours=24`, `/api/fixlog`.
-Actions (`POST /api/fix|check|test-alert|mute`) are localhost-only and need the `X-HW-Token`
-header = `[remediation] token` (`hw init` generates one; the page asks for it once per tab). The
-server looks up commands itself; it never runs anything the client sends. **Mute** (1h/24h, kept in
-SQLite) keeps an issue on the page but stops its alerts and auto-fix. There is no other auth: keep
-it on localhost, or use a reverse proxy / Tailscale.
+Use `hw test-alert` to check that your target works.
 
-## Self-heal (opt-in)
+## Self-heal (optional, off by default)
+
 ```toml
 [remediation]
-enabled = false          # off by default
-mode = "dry-run"         # dry-run | ask | auto
+enabled = false           # switch on when you are ready
+mode = "dry-run"          # dry-run | ask | auto
 fix_units = ["grafana-server.service"]
 fix_containers = ["grafana"]
 ```
-- `dry-run`: `hw collect` logs what it *would* run to `fix_log` (see `hw fix-log`, dashboard).
-- `ask`: dashboard shows a **Fix** button per fixable issue. Needs `token` from config
-  (`X-HW-Token`), and requests must come from localhost. CLI equivalent: `hw collect --fix`.
-- `auto`: `hw collect` runs the fixes itself, re-checks, logs the result.
 
-Allowlist (fixed templates; the unit/container must be in `fix_units`/`fix_containers` or mapped
-by `fix_unit`/`fix_container` on a service check):
-`systemctl --user restart <unit>` (failed user unit) or `sudo -n systemctl restart <unit>` (system
-unit), `docker restart <name>`, and, only for a disk above `disk_crit`: `apt-get clean`,
-`journalctl --vacuum-time=7d`, `docker image prune -f`. Anything else is refused.
-Max 3 attempts per target per hour (dry-run logs a target at most once an hour); then it stops and sends one "needs a human" alert.
+| Mode | What happens |
+|---|---|
+| `dry-run` | Only writes "I would run X" to the fix log. Start here. |
+| `ask` | The dashboard shows a **Fix** button; nothing runs until you click it. |
+| `auto` | It runs the fix itself, waits, re-checks, and logs the result. |
 
-System-level fixes need a minimal sudoers rule, never blanket sudo
-(`sudo visudo -f /etc/sudoers.d/homelab-watch`, replace `youruser` and the units):
+The full list of things it is allowed to run:
+
+- `systemctl --user restart <unit>` (user services), or `sudo -n systemctl restart <unit>` (system services)
+- `docker restart <container>`
+- only when a disk is critically full: `apt-get clean`, `journalctl --vacuum-time=7d`, `docker image prune -f`
+
+Targets must be in your config. It never reboots, deletes your files, edits config, kills random
+processes or runs anything else. After 3 failed tries in an hour it stops and sends one "needs a
+human" alert. Every action is saved to the fix log, and alerts say what was tried and what happened.
+
+System-level restarts need a narrow sudo rule (never blanket sudo). Create
+`/etc/sudoers.d/homelab-watch` with `sudo visudo -f`, replacing `youruser` and the units:
+
 ```
 youruser ALL=(root) NOPASSWD: /usr/bin/systemctl restart grafana-server.service, \
     /usr/bin/apt-get clean, /usr/bin/journalctl --vacuum-time=7d
 ```
 
+## Where things live
+
+| What | Where |
+|---|---|
+| Config | `~/.config/homelab-watch/config.toml` |
+| History + fix log + mutes | `~/.local/share/homelab-watch/history.db` (SQLite) |
+| Service file | `~/.config/systemd/user/hw-serve.service` |
+| Logs when running as a service | `journalctl --user -u hw-serve` |
+
+## Project layout
+
+```
+bin/hw                 launcher
+hw/collectors.py       all checks and metrics, config loading, report text
+hw/engine.py           the live loops (fast / medium / slow) and shared snapshot
+hw/store.py            SQLite: history, fix log, alert state, mutes, lock file
+hw/alerts.py           Discord / Telegram / webhook, state change + cooldown
+hw/fix.py              the allowlisted self-heal
+hw/server.py           web server, live events, API
+hw/page.html           the dashboard (one file, no libraries)
+hw/cli.py              the `hw` commands
+tests/                 unit tests
+docs/                  screenshots
+REPORT.md              build notes, review findings, decisions
+```
+
 ## Tests
+
 ```bash
 python3 -m unittest
 ```
+
+## Troubleshooting
+
+- **"another `hw serve` is already running"**: only one can run at a time (so alerts are never
+  sent twice). Stop the other one, or `systemctl --user stop hw-serve`.
+- **Docker section missing**: your user probably is not in the `docker` group. The report
+  says so in its notes.
+- **Temperature alerts every few minutes**: sensors sitting near the limit. Raise
+  `temp_warn` / `temp_crit`, or increase `min_samples`.
+- **`hw collect --alert` does nothing**: that is intended while `hw serve` is running.
+- **Buttons on the page are missing**: they need a token in the config and the page opened from
+  the same machine.
+
+## Not included (on purpose)
+
+One machine only: no multi-host, no user accounts, no cloud, no Docker image, no pip package,
+no plugins. It is meant to stay small.
