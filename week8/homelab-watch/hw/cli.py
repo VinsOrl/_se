@@ -4,7 +4,7 @@ import json
 import secrets
 import sys
 
-from . import collectors, store
+from . import alerts, collectors, store
 
 
 def cmd_report(a, cfg):
@@ -30,7 +30,14 @@ def cmd_collect(a, cfg):
     snap = collectors.collect_all(cfg)
     con = store.connect()
     store.save(con, snap, cfg["history"]["retention_days"])
+    if a.alert:
+        sent = alerts.process(con, cfg, snap)
+        print(f"alerts: {len(sent)} line(s) sent")
     print(f"stored sample: {snap['status']} ({len(snap['results'])} checks)")
+
+
+def cmd_test_alert(a, cfg):
+    sys.exit(0 if alerts.test_alert(cfg) else 1)
 
 
 def cmd_serve(a, cfg):
@@ -57,7 +64,9 @@ def main(argv=None):
     s.set_defaults(fn=cmd_report)
     sub.add_parser("check", help="exit 0/1/2 = ok/warn/crit").set_defaults(fn=cmd_check)
     s = sub.add_parser("collect", help="take one sample and store it")
+    s.add_argument("--alert", action="store_true", help="send alerts on state change")
     s.set_defaults(fn=cmd_collect)
+    sub.add_parser("test-alert", help="send a test message").set_defaults(fn=cmd_test_alert)
     s = sub.add_parser("serve", help="local dashboard")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
