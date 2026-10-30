@@ -33,6 +33,11 @@ def cmd_collect(a, cfg):
     print(f"stored sample: {snap['status']} ({len(snap['results'])} checks)")
 
 
+def cmd_serve(a, cfg):
+    from . import server
+    server.serve(cfg, a.host, a.port)
+
+
 def cmd_init(a, cfg):
     p = collectors.CONFIG_PATH
     if p.exists() and not a.force:
@@ -53,6 +58,10 @@ def main(argv=None):
     sub.add_parser("check", help="exit 0/1/2 = ok/warn/crit").set_defaults(fn=cmd_check)
     s = sub.add_parser("collect", help="take one sample and store it")
     s.set_defaults(fn=cmd_collect)
+    s = sub.add_parser("serve", help="local dashboard")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8765)
+    s.set_defaults(fn=cmd_serve)
     s = sub.add_parser("init", help="write default config")
     s.add_argument("--force", action="store_true")
     s.set_defaults(fn=cmd_init)
