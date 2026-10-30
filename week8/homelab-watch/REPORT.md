@@ -40,3 +40,50 @@ All 6 phases implemented, one commit each (authored as VinsOrl, no co-author/att
 ## Questions
 - Should exited containers with exit code 0 (one-shot jobs) count as warnings? Currently yes.
 - Do you want the original `homelab_watch.py` removed now that `hw` supersedes it?
+
+
+---
+
+# v2 (SPEC_v2)
+
+`/ponytail` and `/code-review-skill` were both available and used. Each phase: implement, then run a
+review pass, fix what it flagged, commit separately. 35 tests pass (`python3 -m unittest`).
+Commits: Phase 0, Phase 7 (+ review fixes), Phase 8 (+ review fixes), plus this docs/report commit.
+
+## What was built
+- **Phase 0**: containers exiting with code 0 no longer warn (non-zero exit, restarting, unhealthy, created/paused do); `[checks] ignore_containers`. Flap protection: `[alerts] min_samples` (default 2) consecutive bad evaluations before an alert; a blip that clears never alerts or "recovers". DB migrates itself (adds `alert_state.bad`). Already done in v1 and skipped: nothing else.
+- **Phase 7**: `hw/engine.py`: three collector tiers in threads (fast 2 s / medium 30 s / slow 10 min, `[engine]` config), one in-memory snapshot, alerts + remediation every `eval` (30 s), SQLite history every 60 s with retention pruning, SIGTERM shutdown. New collectors: CPU %, network rx/tx rate. `/api/current` is cache-only (about 20 ms). `GET /events` SSE (full snapshot, then changed results only). Page actions: Fix, Run checks, Test alert, Mute 1h/24h (+ unmute), all localhost + token. `hw install-service`. `hw collect --alert/--fix` and a second `hw serve` are refused by a `flock` lock file.
+- **Phase 8**: `hw/page.html` (one inline page, no libraries): top bar (host, status pill, live dot, uptime, theme toggle, Fix log drawer only when non-empty), KPI tiles with bar, sparkline with min/max and time labels, hover tooltip, click for 1h/6h/24h/7d chart; "Needs attention" cards with Fix/Mute/Details; collapsible section cards with one-line summaries (hottest 3 temps + show all, docker "9 running, 1 exited", collapsed log with copy button); SVG icons, dark default, light via `prefers-color-scheme` + toggle. DOM is updated per component only when its HTML changed, so nothing flickers.
+
+## Verification (real runs)
+- `hw serve` alone: values update every 2 s, history grew (`/api/history`), flap-gated webhook alert fired, auto-fix tried a failing unit 3 times then sent one "needs a human" alert, SIGTERM stopped it cleanly.
+- `hw collect --alert` while serving printed "nothing to do"; second `hw serve` refused.
+- Browser at 1440 px and 390 px: no console errors, no horizontal scroll at 390. Screenshots: `docs/dashboard-1440.jpg`, `docs/dashboard-390.jpg`, `docs/chart-modal-1440.jpg` (captured at the browser pane's scaled size; the 1440 ones are low resolution).
+- SSE drop: called the error path, page switched to polling (dot amber), then reconnected and went live again. Mute from the page worked and the muted issue left the pill count.
+- A collector that raises becomes a "<name> unavailable" warning; the rest keep running (unit test + earlier live run).
+
+## Review findings and fixes
+**Phase 0** review: 🟡 v1 DBs lack the new column, so added a migration and test (fixed). 🟢 warn to crit inside the alert cooldown stays silent (intended, documented).
+**Phase 7** review: 🔴 POST body size was unbounded: capped at 4 KB, 413 above (fixed + test). 🟡 SSE read the engine version after waiting, causing a spurious ping on connect: now read before the snapshot (fixed). 🟡 Found while writing it: a crashed collector would make its checks vanish and trigger false "RECOVERED" alerts; alerts now treat vanished checks as recovered only when no `collector:*` result is present (fixed + test). 🟡 Alerts/fix wait until every collector ran once, so a half-built snapshot never looks like mass recovery (fixed). 🟢 Remediation is not flap-gated (still per eval, capped at 3 per hour). Left as is.
+**Phase 8** review: 🟡 low contrast white-on-amber pill and white-on-light-blue buttons in the dark theme: fixed with an `--onaccent` token and dark text on the pill. 🟢 modal has no focus trap (Esc closes it): left. 🟢 all text goes through `esc()`, no XSS found.
+
+## Decisions (simplest option taken)
+- **Flap protection counts evaluations**, not 2 s ticks: in `hw serve` that is 30 s apart (so 2 samples is about a minute); in `hw collect` it is 5 min apart. History samples are separate (60 s).
+- **Page actions need the token even for Mute/Check/Test alert**, using `[remediation] token`. With no token configured the buttons are hidden. Fix additionally needs `mode = "ask"`.
+- **Dry-run** logs a given target once per hour instead of every evaluation.
+- **Verifying a fix** refreshes the fast + medium tiers (not apt/backups) before reading the result.
+- **History** now stores only status + metrics (the per-check map was unused) and `/api/history` thins to about 300 points, so 7d is cheap.
+- **Lock** gates only `collect --alert/--fix`; plain `hw collect` still works while serving (writes an extra history row).
+- **Uptime** is now a numeric `value` on the `uptime` result so the page can format it.
+- Network rate skips `lo`, `veth*`, `docker*`, `br-*` to avoid double counting.
+- Muted keys with `hours = 0` mean unmute.
+
+## Known limits / not done
+- `hw install-service` was written and unit-checked through the same code path as install-timer, but I did not install it on your real systemd this time (v1's install-timer was tested for real).
+- Light theme was not screenshot-reviewed, only its colors chosen for contrast.
+- The first `hw report` CPU value takes a 0.2 s second sample.
+- Discord/Telegram delivery still untested (only a local webhook).
+
+## Questions
+- Should muting also be offered for non-failing items (e.g. a noisy temperature sensor), or is "issues only" right? Currently only on the attention cards.
+- Do you want `hw collect` / `install-timer` removed now that `install-service` is the recommended path?
