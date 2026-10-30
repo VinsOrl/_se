@@ -1,12 +1,13 @@
 """argparse commands."""
 import argparse
+import datetime
 import json
 import secrets
 import subprocess
 import sys
 from pathlib import Path
 
-from . import alerts, collectors, store
+from . import alerts, collectors, fix, store
 
 
 def cmd_report(a, cfg):
@@ -31,11 +32,26 @@ def cmd_check(a, cfg):
 def cmd_collect(a, cfg):
     snap = collectors.collect_all(cfg)
     con = store.connect()
+    rem, notes, msgs = cfg["remediation"], {}, []
+    if a.fix and not rem["enabled"]:
+        print("remediation is disabled ([remediation] enabled = false): no fixes run")
+    elif rem["enabled"] and (rem["mode"] != "ask" or a.fix):
+        # ask mode only acts when explicitly requested with --fix (or via the dashboard button)
+        notes, msgs = fix.apply(con, cfg, snap, collectors.collect_all,
+                                mode="auto" if rem["mode"] == "ask" else rem["mode"])
+        for m in msgs:
+            print(m)
     store.save(con, snap, cfg["history"]["retention_days"])
     if a.alert:
-        sent = alerts.process(con, cfg, snap)
+        sent = alerts.process(con, cfg, snap, notes, msgs)
         print(f"alerts: {len(sent)} line(s) sent")
     print(f"stored sample: {snap['status']} ({len(snap['results'])} checks)")
+
+
+def cmd_fix_log(a, cfg):
+    for f in reversed(store.fix_log(store.connect(), a.limit)):
+        when = datetime.datetime.fromtimestamp(f["ts"])
+        print(f"{when:%Y-%m-%d %H:%M:%S}  {f['target']:<24} {f['result']:<28} {f['command']}")
 
 
 def cmd_test_alert(a, cfg):
@@ -144,7 +160,11 @@ def main(argv=None):
     sub.add_parser("check", help="exit 0/1/2 = ok/warn/crit").set_defaults(fn=cmd_check)
     s = sub.add_parser("collect", help="take one sample and store it")
     s.add_argument("--alert", action="store_true", help="send alerts on state change")
+    s.add_argument("--fix", action="store_true", help="apply remediation now (needed in 'ask' mode)")
     s.set_defaults(fn=cmd_collect)
+    s = sub.add_parser("fix-log", help="show remediation history")
+    s.add_argument("--limit", type=int, default=50)
+    s.set_defaults(fn=cmd_fix_log)
     sub.add_parser("test-alert", help="send a test message").set_defaults(fn=cmd_test_alert)
     s = sub.add_parser("serve", help="local dashboard")
     s.add_argument("--host", default="127.0.0.1")
