@@ -2,7 +2,9 @@
 import argparse
 import json
 import secrets
+import subprocess
 import sys
+from pathlib import Path
 
 from . import alerts, collectors, store
 
@@ -45,6 +47,83 @@ def cmd_serve(a, cfg):
     server.serve(cfg, a.host, a.port)
 
 
+UNITS = ("hw-collect.timer", "hw-collect.service", "hw-serve.service")
+
+
+def unit_dir():
+    return Path.home() / ".config/systemd/user"
+
+
+def systemctl(*args):
+    try:
+        r = subprocess.run(["systemctl", "--user", *args], capture_output=True, text=True)
+        return r.returncode == 0, (r.stderr or r.stdout).strip()
+    except FileNotFoundError:
+        return False, "systemctl not found"
+
+
+def cmd_install_timer(a, cfg):
+    root = Path(__file__).resolve().parent.parent
+    py = sys.executable
+    files = {
+        "hw-collect.service": f"""[Unit]
+Description=homelab-watch sample + alerts
+
+[Service]
+Type=oneshot
+Environment=PYTHONPATH={root}
+ExecStart={py} -m hw collect --alert
+""",
+        "hw-collect.timer": """[Unit]
+Description=homelab-watch every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=hw-collect.service
+
+[Install]
+WantedBy=timers.target
+""",
+    }
+    if a.serve:
+        files["hw-serve.service"] = f"""[Unit]
+Description=homelab-watch dashboard
+
+[Service]
+Environment=PYTHONPATH={root}
+ExecStart={py} -m hw serve --port {a.port}
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+"""
+    d = unit_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    for name, text in files.items():
+        (d / name).write_text(text)
+        print(f"wrote {d / name}")
+    steps = [("daemon-reload",), ("enable", "--now", "hw-collect.timer")]
+    if a.serve:
+        steps.append(("enable", "--now", "hw-serve.service"))
+    for st in steps:
+        ok, msg = systemctl(*st)
+        print(f"systemctl --user {' '.join(st)}: {'ok' if ok else 'FAILED ' + msg}")
+    print("Timer runs `hw collect --alert` every 5 min. To keep it running while logged out: "
+          "loginctl enable-linger $USER")
+
+
+def cmd_uninstall(a, cfg):
+    for name in UNITS:
+        if (unit_dir() / name).exists():
+            if name != "hw-collect.service":
+                systemctl("disable", "--now", name)
+            (unit_dir() / name).unlink()
+            print(f"removed {name}")
+    systemctl("daemon-reload")
+    print("done (config and history are kept)")
+
+
 def cmd_init(a, cfg):
     p = collectors.CONFIG_PATH
     if p.exists() and not a.force:
@@ -71,6 +150,11 @@ def main(argv=None):
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8765)
     s.set_defaults(fn=cmd_serve)
+    s = sub.add_parser("install-timer", help="systemd --user timer (+ optional dashboard)")
+    s.add_argument("--serve", action="store_true", help="also install the dashboard service")
+    s.add_argument("--port", type=int, default=8765)
+    s.set_defaults(fn=cmd_install_timer)
+    sub.add_parser("uninstall", help="remove the systemd user units").set_defaults(fn=cmd_uninstall)
     s = sub.add_parser("init", help="write default config")
     s.add_argument("--force", action="store_true")
     s.set_defaults(fn=cmd_init)
