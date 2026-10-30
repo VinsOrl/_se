@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import tomllib
 import urllib.error
@@ -23,8 +24,9 @@ SKIP_FS = {"proc", "sysfs", "devtmpfs", "tmpfs", "cgroup", "cgroup2", "overlay",
 DEFAULTS = {
     "thresholds": {"disk_warn": 85, "disk_crit": 95, "mem_warn": 90, "mem_crit": 97,
                    "temp_warn": 80, "temp_crit": 90, "gpu_temp_warn": 80,
-                   "gpu_temp_crit": 90, "load_warn": 1.5, "load_crit": 3.0},
+                   "gpu_temp_crit": 90, "load_warn": 1.5, "load_crit": 3.0, "cpu_warn": 90, "cpu_crit": 98},
     "history": {"retention_days": 30},
+    "engine": {"fast": 2, "medium": 30, "slow": 600, "eval": 30, "history": 60},
     "checks": {"ping": [], "dns": [], "http": [], "tcp": [], "backup": [], "ignore_containers": []},
     "alerts": {"cooldown_minutes": 30, "min_samples": 2},
     "remediation": {"enabled": False, "mode": "dry-run", "token": "",
@@ -46,9 +48,18 @@ gpu_temp_warn = 80
 gpu_temp_crit = 90
 load_warn = 1.5         # 1-min load per CPU core
 load_crit = 3.0
+cpu_warn = 90           # % CPU busy (2s sample)
+cpu_crit = 98
 
 [history]
 retention_days = 30
+
+[engine]                # `hw serve` background loops, seconds
+fast = 2                # cpu, load, ram, temps, gpu, network rate
+medium = 30             # disks, docker, units, ping/dns/http/tcp, top processes
+slow = 600              # apt, reboot-required, backup age
+eval = 30               # alerts + remediation run this often (flap protection counts these)
+history = 60            # SQLite sample interval
 
 [checks]
 ping = []               # e.g. ["1.1.1.1", "192.168.1.1"]
@@ -157,10 +168,31 @@ def uptime_load():
         secs = float(Path("/proc/uptime").read_text().split()[0])
         load = os.getloadavg()
     except Exception:
-        return None, None, os.cpu_count() or 1
+        return None, None, os.cpu_count() or 1, 0
     d, rem = divmod(int(secs), 86400)
     h, rem = divmod(rem, 3600)
-    return f"{d}d {h}h {rem // 60}m", load, os.cpu_count() or 1
+    return f"{d}d {h}h {rem // 60}m", load, os.cpu_count() or 1, secs
+
+
+_prev = {}  # last cpu/net counters; only touched by the fast tier (one thread at a time)
+
+
+def cpu_pct():
+    def read():
+        v = [int(x) for x in Path("/proc/stat").read_text().split("\n", 1)[0].split()[1:]]
+        return sum(v) - v[3] - v[4], sum(v)  # busy (minus idle, iowait), total
+    busy, total = read()
+    if "cpu" not in _prev:  # first call (one-shot report): take a short second sample
+        _prev["cpu"] = (busy, total)
+        time.sleep(0.2)
+        busy, total = read()
+    pb, pt = _prev["cpu"]
+    _prev["cpu"] = (busy, total)
+    return (busy - pb) / (total - pt) * 100 if total > pt else 0.0
+
+
+def rate(b):
+    return f"{b / 1024**2:.1f} MB/s" if b >= 1024**2 else f"{b / 1024:.0f} KB/s"
 
 
 def memory():
@@ -213,12 +245,14 @@ def temps():
 
 def c_system(cfg, out):
     t = cfg["thresholds"]
-    up, load, cpus = uptime_load()
+    up, load, cpus, secs = uptime_load()
     if up:
-        out.add("System", "uptime", "ok", f"Uptime: {up}")
+        out.add("System", "uptime", "ok", f"Uptime: {up}", value=secs)
         out.add("System", "load", level(load[0] / cpus, t["load_warn"], t["load_crit"]),
                 f"Load (1/5/15m): {load[0]:.2f} / {load[1]:.2f} / {load[2]:.2f} on {cpus} cores",
                 value=load[0])
+    cpu = cpu_pct()
+    out.add("System", "cpu", level(cpu, t["cpu_warn"], t["cpu_crit"]), f"CPU: {cpu:.0f}%", value=cpu)
     m = memory()
     if m:
         total, used, st, su = m
@@ -229,6 +263,24 @@ def c_system(cfg, out):
             out.add("System", "swap", "ok", f"Swap: {gb(su)} / {gb(st)}")
     else:
         out.note("/proc/meminfo unreadable: RAM skipped")
+
+
+def c_net(cfg, out):
+    rx = tx = 0
+    try:
+        for line in Path("/proc/net/dev").read_text().splitlines()[2:]:
+            name, _, rest = line.partition(":")
+            if name.strip() == "lo" or name.strip().startswith(("veth", "docker", "br-")):
+                continue
+            f = rest.split()
+            rx, tx = rx + int(f[0]), tx + int(f[8])
+    except OSError:
+        return out.note("/proc/net/dev unreadable: traffic skipped")
+    now, prev = time.monotonic(), _prev.get("net")
+    _prev["net"] = (now, rx, tx)
+    if prev and now > prev[0]:
+        r, t = (rx - prev[1]) / (now - prev[0]), (tx - prev[2]) / (now - prev[0])
+        out.add("Network", "net", "ok", f"Traffic: down {rate(r)}, up {rate(t)}", rx=r, tx=t)
 
 
 def c_disks(cfg, out):
@@ -355,7 +407,10 @@ def c_checks(cfg, out):
             ok = False
         out.add("Services", f"tcp:{name}", "ok" if ok else "crit",
                 f"{name} ({c['host']}:{c['port']}): {'open' if ok else 'closed'}", **_fix_hint(c))
-    for c in ch["backup"]:
+
+
+def c_backup(cfg, out):
+    for c in cfg["checks"]["backup"]:
         name, limit = c.get("name") or c["path"], c.get("max_age_hours", 26)
         try:
             age = (time.time() - os.stat(c["path"]).st_mtime) / 3600
@@ -386,18 +441,37 @@ def c_top(cfg, out):
                 detail="\n".join(f"{r[3]} (pid {r[0]}): {r[2]}%" for r in cpu if len(r) == 4))
 
 
-COLLECTORS = [c_system, c_disks, c_temps, c_gpu, c_units, c_docker, c_updates, c_checks, c_top]
+TIERS = {"fast": [c_system, c_temps, c_gpu, c_net],
+         "medium": [c_disks, c_units, c_docker, c_checks, c_top],
+         "slow": [c_updates, c_backup]}
+COLLECTORS = [fn for fns in TIERS.values() for fn in fns]
+
+
+def run_one(fn, cfg):
+    """(results, notes) of one collector. A crash becomes a 'collector unavailable' result."""
+    out = Out()
+    try:
+        fn(cfg, out)
+    except Exception as e:  # a collector must never crash the run or the server
+        print(f"collector {fn.__name__} crashed: {e!r}", file=sys.stderr)
+        out = Out()
+        out.add("Collectors", f"collector:{fn.__name__}", "warn", f"{fn.__name__} unavailable: {e}")
+    return out.results, out.notes
+
+
+def merge(parts):
+    """Snapshot from {collector name: (results, notes)}, in COLLECTORS order."""
+    results, notes = [], []
+    for fn in COLLECTORS:
+        r, n = parts.get(fn.__name__, ([], []))
+        results += r
+        notes += n
+    return finalize({"host": os.uname().nodename, "ts": int(time.time()),
+                     "results": results, "notes": notes})
 
 
 def collect_all(cfg):
-    out = Out()
-    for fn in COLLECTORS:
-        try:
-            fn(cfg, out)
-        except Exception as e:  # a collector must never crash the run
-            out.note(f"{fn.__name__} failed: {e}")
-    return finalize({"host": os.uname().nodename, "ts": int(time.time()),
-                     "results": out.results, "notes": out.notes})
+    return merge({fn.__name__: run_one(fn, cfg) for fn in COLLECTORS})
 
 
 def finalize(snap):
@@ -405,7 +479,7 @@ def finalize(snap):
     res = snap["results"]
     val = {r["key"]: r["value"] for r in res if "value" in r}
     pick = lambda pre: [r["value"] for r in res if r["key"].startswith(pre) and "value" in r]
-    m = {"load": val.get("load"), "ram": val.get("ram"),
+    m = {"cpu": val.get("cpu"), "load": val.get("load"), "ram": val.get("ram"),
          "disk": max(pick("disk:"), default=None), "temp": max(pick("temp:"), default=None),
          "gpu": val.get("gpu:0")}
     snap["metrics"] = {k: v for k, v in m.items() if v is not None}

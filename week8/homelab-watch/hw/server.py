@@ -1,9 +1,12 @@
 """Tiny read-only dashboard (stdlib http.server). Only POST /api/fix writes (Phase 6)."""
 import json
+import signal
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import collectors, store
+from . import alerts, collectors, fix, store
+from .engine import Engine
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>homelab-watch</title>
@@ -74,7 +77,20 @@ load();setInterval(load,10000);
 </script></body></html>"""
 
 
-def make_handler(cfg, db_path):
+LOCAL = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+MUTE_HOURS = (0, 1, 24)  # 0 = unmute
+
+
+def view(cfg, con, snap, client=None):
+    """Snapshot + what the page may offer: fixable issues, active mutes, whether actions work."""
+    rem = cfg["remediation"]
+    ask = rem["enabled"] and rem["mode"] == "ask"
+    return dict(snap, muted=store.muted(con),
+                fixable=[p["key"] for p in fix.plan(snap, cfg)] if ask else [],
+                actions=bool(rem["token"]) and (client is None or client in LOCAL))
+
+
+def make_handler(cfg, engine, db_path):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -90,14 +106,15 @@ def make_handler(cfg, db_path):
 
         def do_GET(self):
             u = urlparse(self.path)
+            if u.path == "/":
+                return self.send(200, PAGE, "text/html")
+            if u.path == "/events":
+                return self.events()
             con = store.connect(db_path)
             try:
-                if u.path == "/":
-                    self.send(200, PAGE, "text/html")
-                elif u.path == "/api/current":
-                    snap = collectors.collect_all(cfg)
-                    snap["fixable"] = fixable_keys(cfg, snap)
-                    self.send(200, snap)
+                if u.path == "/api/current":
+                    self.send(200, dict(view(cfg, con, engine.snapshot(), self.client_address[0]),
+                                        ready=engine.ready()))
                 elif u.path == "/api/history":
                     try:
                         hours = float(parse_qs(u.query).get("hours", ["24"])[0])
@@ -111,49 +128,104 @@ def make_handler(cfg, db_path):
             finally:
                 con.close()
 
+        def events(self):
+            """Server-sent events: full snapshot first, then only the results that changed."""
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            sent, version = None, -1
+            try:
+                while not engine.stop.is_set():
+                    con = store.connect(db_path)
+                    try:
+                        snap = view(cfg, con, engine.snapshot(), self.client_address[0])
+                    finally:
+                        con.close()
+                    cur = {r["key"]: r for r in snap["results"]}
+                    changed = [r for k, r in cur.items() if sent is None or sent.get(k) != r]
+                    gone = [] if sent is None else [k for k in sent if k not in cur]
+                    if sent is None or changed or gone:
+                        meta = {k: snap[k] for k in ("host", "ts", "status", "metrics", "notes",
+                                                     "muted", "fixable", "actions")}
+                        ev = dict(meta, results=changed, gone=gone, full=sent is None)
+                        self.wfile.write(f"event: update\ndata: {json.dumps(ev)}\n\n".encode())
+                    else:
+                        self.wfile.write(b"event: ping\ndata: {}\n\n")
+                    self.wfile.flush()
+                    sent = cur
+                    version = engine.wait(version, 15)
+            except OSError:  # client went away
+                pass
+
         def do_POST(self):
-            if urlparse(self.path).path != "/api/fix":
+            name = urlparse(self.path).path.removeprefix("/api/").replace("-", "_")
+            if name not in ("fix", "check", "test_alert", "mute"):
                 return self.send(404, {"error": "not found"})
-            from . import fix
-            rem = cfg["remediation"]
-            if self.client_address[0] not in ("127.0.0.1", "::1", "::ffff:127.0.0.1"):
+            if self.client_address[0] not in LOCAL:
                 return self.send(403, {"error": "localhost only"})
-            if not (rem["enabled"] and rem["mode"] == "ask"):
-                return self.send(403, {"error": "remediation mode is not 'ask'"})
-            if not fix.token_ok(rem["token"], self.headers.get("X-HW-Token", "")):
+            if not fix.token_ok(cfg["remediation"]["token"], self.headers.get("X-HW-Token", "")):
                 return self.send(403, {"error": "bad or missing token"})
             try:
                 n = int(self.headers.get("Content-Length", 0))
-                key = json.loads(self.rfile.read(n))["key"]
-            except Exception:
+                body = json.loads(self.rfile.read(n) or b"{}")
+            except ValueError:
                 return self.send(400, {"error": "bad request"})
             con = store.connect(db_path)
             try:
-                snap = collectors.collect_all(cfg)
-                plans = [p for p in fix.plan(snap, cfg) if p["key"] == key]
-                if not plans:
-                    return self.send(404, {"error": "no allowlisted fix for that issue"})
-                notes, msgs = fix.apply(con, cfg, snap, collectors.collect_all, mode="auto",
-                                    only=plans[0]["target"])
-                self.send(200, {"messages": msgs or list(notes.values()) or ["attempt limit reached or nothing to do"]})
+                code, res = getattr(self, "act_" + name)(con, body)
             finally:
                 con.close()
+            self.send(code, res)
+
+        def act_fix(self, con, body):
+            rem = cfg["remediation"]
+            if not (rem["enabled"] and rem["mode"] == "ask"):
+                return 403, {"error": "remediation mode is not 'ask'"}
+            snap = engine.snapshot()
+            plans = [p for p in fix.plan(snap, cfg) if p["key"] == body.get("key")]
+            if not plans:
+                return 404, {"error": "no allowlisted fix for that issue"}
+            notes, msgs = fix.apply(con, cfg, snap, lambda c: engine.refresh(), mode="auto",
+                                    only=plans[0]["target"])
+            return 200, {"messages": msgs or list(notes.values()) or ["attempt limit reached"]}
+
+        def act_check(self, con, body):
+            snap = engine.refresh(tuple(collectors.TIERS))
+            return 200, {"status": snap["status"], "ts": snap["ts"]}
+
+        def act_test_alert(self, con, body):
+            res = alerts.send(cfg, "homelab-watch test alert", engine.snapshot()["host"], ["test"])
+            if not res:
+                return 400, {"error": "no alert targets configured"}
+            return 200, {"results": [{"target": n, "error": e} for n, e in res]}
+
+        def act_mute(self, con, body):
+            key, hours = body.get("key"), body.get("hours")
+            if not isinstance(key, str) or not key or len(key) > 200 or hours not in MUTE_HOURS:
+                return 400, {"error": "need key and hours in (0, 1, 24)"}
+            store.mute(con, key, hours * 3600)
+            return 200, {"muted": store.muted(con)}
 
     return Handler
 
 
-def fixable_keys(cfg, snap):
-    rem = cfg["remediation"]
-    if not (rem["enabled"] and rem["mode"] == "ask"):
-        return []
-    from . import fix
-    return [p["key"] for p in fix.plan(snap, cfg)]
-
-
-def serve(cfg, host, port, db_path=store.DB_PATH):
-    srv = ThreadingHTTPServer((host, port), make_handler(cfg, db_path))
-    print(f"hw dashboard on http://{host}:{port}/  (Ctrl-C to stop)")
+def serve(cfg, host, port, db_path=store.DB_PATH, lock_path=store.LOCK_PATH):
+    lock = store.try_lock(lock_path)  # held until exit; keeps `hw collect --alert` out
+    if lock is None:
+        raise SystemExit("another `hw serve` is already running")
+    engine = Engine(cfg, db_path)
+    srv = ThreadingHTTPServer((host, port), make_handler(cfg, engine, db_path))
+    srv.daemon_threads = True
+    # shutdown() must run off the serving thread
+    signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=srv.shutdown).start())
+    engine.start()
+    print(f"hw serve: http://{host}:{port}/  (Ctrl-C or SIGTERM to stop)", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        engine.shutdown()
+        srv.server_close()
+        lock.close()

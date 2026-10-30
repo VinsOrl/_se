@@ -4,7 +4,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from hw import alerts, collectors, fix, store
+import json
+import threading
+import urllib.request
+
+from hw import alerts, collectors, fix, server, store
+from hw.engine import Engine
 
 DAY = 86400
 
@@ -33,11 +38,13 @@ class Thresholds(unittest.TestCase):
             s = collectors.collect_all(cfg)
         self.assertIn(s["status"], collectors.RANK)
 
-    def test_collector_exception_becomes_note(self):
+    def test_collector_crash_is_marked_unavailable_not_fatal(self):
         cfg = collectors.load_config("/nonexistent")
         with mock.patch.object(collectors, "memory", side_effect=RuntimeError("boom")):
             s = collectors.collect_all(cfg)
-        self.assertTrue(any("boom" in n for n in s["notes"]))
+        bad = [r for r in s["results"] if r["key"] == "collector:c_system"]
+        self.assertIn("boom", bad[0]["text"])
+        self.assertTrue(any(r["key"] == "disk:/" for r in s["results"]))  # others still ran
 
 
 class Containers(unittest.TestCase):
@@ -233,6 +240,117 @@ class Remediation(unittest.TestCase):
         self.assertFalse(fix.token_ok("", ""))
         self.assertTrue(fix.token_ok("abc", "abc"))
         self.assertFalse(fix.token_ok("abc", "abd"))
+
+
+class Mutes(unittest.TestCase):
+    def test_mute_expire_unmute(self):
+        con = store.connect(":memory:")
+        store.mute(con, "k", 3600, now=100)
+        self.assertIn("k", store.muted(con, now=200))
+        self.assertNotIn("k", store.muted(con, now=100 + 3600))
+        store.mute(con, "k", 3600, now=100)
+        store.mute(con, "k", 0)
+        self.assertEqual(store.muted(con, now=200), {})
+
+    def test_muted_issue_does_not_alert(self):
+        con, cfg, sent = store.connect(":memory:"), collectors.load_config("/x"), []
+        cfg["alerts"]["min_samples"] = 1
+        out = alerts.process(con, cfg, snap([("x", "crit")]), muted={"x": 1},
+                             send=lambda *a, **k: sent.append(a) or [])
+        self.assertEqual((out, sent), ([], []))
+
+    def test_muted_issue_is_not_fixed(self):
+        con, cfg = store.connect(":memory:"), collectors.load_config("/x")
+        cfg["remediation"].update(fix_units=["web"], mode="auto", enabled=True)
+        s = snap([("unit:web", "warn")])
+        s["results"][0]["fix"] = ["unit", "web", "user"]
+        with mock.patch.object(fix.subprocess, "run") as run:
+            fix.apply(con, cfg, s, lambda c: s, muted={"unit:web": 1})
+        run.assert_not_called()
+
+    def test_crashed_collector_does_not_cause_false_recovery(self):
+        con, cfg = store.connect(":memory:"), collectors.load_config("/x")
+        cfg["alerts"]["min_samples"] = 1
+        alerts.process(con, cfg, snap([("disk:/", "crit")]), send=lambda *a, **k: [])
+        out = alerts.process(con, cfg, snap([("collector:c_disks", "warn")], 2000),
+                             send=lambda *a, **k: [])
+        self.assertFalse(any("RECOVERED" in l for l in out))
+
+
+class EngineTests(unittest.TestCase):
+    def test_snapshot_ready_and_history_thinning(self):
+        cfg = collectors.load_config("/x")
+        e = Engine(cfg, ":memory:")
+        self.assertFalse(e.ready())
+        for t in collectors.TIERS:
+            e.run_tier(t)
+        self.assertTrue(e.ready())
+        self.assertIn("cpu", {r["key"] for r in e.snapshot()["results"]})
+        con = store.connect(":memory:")
+        for i in range(1000):
+            store.save(con, snap([("a", "ok")], 10_000 + i * 60), 30)
+        self.assertLessEqual(len(store.history(con, 24 * 30, now=10_000 + 60_000, points=300)), 300)
+
+    def test_lock_is_exclusive(self):
+        with tempfile.TemporaryDirectory() as d:
+            a = store.try_lock(Path(d, "l"))
+            self.assertIsNone(store.try_lock(Path(d, "l")))
+            a.close()
+            b = store.try_lock(Path(d, "l"))
+            self.assertIsNotNone(b)
+            b.close()
+
+
+class Api(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.TemporaryDirectory()
+        self.cfg = collectors.load_config("/x")
+        self.cfg["remediation"]["token"] = "tok"
+        self.db = Path(self.d.name, "h.db")
+        self.engine = Engine(self.cfg, self.db)
+        for t in collectors.TIERS:
+            self.engine.run_tier(t)
+        self.srv = server.ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(self.cfg, self.engine, self.db))
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.srv.server_port}"
+
+    def tearDown(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+        self.d.cleanup()
+
+    def post(self, path, body, token=None):
+        req = urllib.request.Request(self.url + path, json.dumps(body).encode(),
+                                     {"X-HW-Token": token} if token else {})
+        try:
+            r = urllib.request.urlopen(req)
+        except urllib.error.HTTPError as e:
+            r = e
+        return r.status, json.load(r)
+
+    def test_current_is_cached_and_fast(self):
+        with mock.patch.object(collectors, "run") as run:
+            d = json.load(urllib.request.urlopen(self.url + "/api/current"))
+        run.assert_not_called()
+        self.assertTrue(d["ready"] and d["actions"])
+
+    def test_actions_need_token_and_valid_input(self):
+        self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1})[0], 403)
+        self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1}, "bad")[0], 403)
+        self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 7}, "tok")[0], 400)
+        self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1}, "tok")[0], 200)
+        self.assertEqual(self.post("/api/fix", {"key": "k"}, "tok")[0], 403)  # not in ask mode
+        self.assertEqual(self.post("/api/nope", {}, "tok")[0], 404)
+
+    def test_sse_sends_full_snapshot_first(self):
+        r = urllib.request.urlopen(self.url + "/events")
+        self.assertIn("text/event-stream", r.headers["Content-Type"])
+        line = ""
+        while not line.startswith("data:"):
+            line = r.readline().decode()
+        ev = json.loads(line[5:])
+        self.assertTrue(ev["full"] and ev["results"])
+        r.close()
 
 
 if __name__ == "__main__":

@@ -30,6 +30,11 @@ def cmd_check(a, cfg):
 
 
 def cmd_collect(a, cfg):
+    lock = None
+    if a.alert or a.fix:  # only the acting modes must not double up with `hw serve`
+        lock = store.try_lock()
+        if lock is None:
+            return print("`hw serve` is running and already alerts/fixes: nothing to do")
     snap = collectors.collect_all(cfg)
     con = store.connect()
     rem, notes, msgs = cfg["remediation"], {}, []
@@ -129,6 +134,30 @@ WantedBy=default.target
           "loginctl enable-linger $USER")
 
 
+def cmd_install_service(a, cfg):
+    root = Path(__file__).resolve().parent.parent
+    d = unit_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "hw-serve.service").write_text(f"""[Unit]
+Description=homelab-watch (live dashboard, alerts, history)
+
+[Service]
+Environment=PYTHONPATH={root}
+ExecStart={sys.executable} -m hw serve --port {a.port}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+""")
+    print(f"wrote {d / 'hw-serve.service'}")
+    for st in (("daemon-reload",), ("enable", "--now", "hw-serve.service")):
+        ok, msg = systemctl(*st)
+        print(f"systemctl --user {' '.join(st)}: {'ok' if ok else 'FAILED ' + msg}")
+    print(f"Dashboard: http://127.0.0.1:{a.port}/  (logs: journalctl --user -u hw-serve). "
+          "To keep it running while logged out: loginctl enable-linger $USER")
+
+
 def cmd_uninstall(a, cfg):
     for name in UNITS:
         if (unit_dir() / name).exists():
@@ -174,6 +203,9 @@ def main(argv=None):
     s.add_argument("--serve", action="store_true", help="also install the dashboard service")
     s.add_argument("--port", type=int, default=8765)
     s.set_defaults(fn=cmd_install_timer)
+    s = sub.add_parser("install-service", help="run `hw serve` as a systemd user service (recommended)")
+    s.add_argument("--port", type=int, default=8765)
+    s.set_defaults(fn=cmd_install_service)
     sub.add_parser("uninstall", help="remove the systemd user units").set_defaults(fn=cmd_uninstall)
     s = sub.add_parser("init", help="write default config")
     s.add_argument("--force", action="store_true")

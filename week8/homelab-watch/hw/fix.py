@@ -75,7 +75,7 @@ def plan(snap, cfg):
     return out
 
 
-def apply(con, cfg, snap, collect, mode=None, only=None, now=None, sleep=time.sleep):
+def apply(con, cfg, snap, collect, mode=None, only=None, now=None, sleep=time.sleep, muted=()):
     """Run (or dry-run) the plan. Returns ({key: 'tried X, result Y'}, [message lines]).
 
     On a real fix the check is re-collected and `snap` is replaced with the fresh result.
@@ -84,11 +84,12 @@ def apply(con, cfg, snap, collect, mode=None, only=None, now=None, sleep=time.sl
     mode, notes, msgs = mode or rem["mode"], {}, []
     for p in plan(snap, cfg):
         target = p["target"]
-        if only and target != only:
+        if (only and target != only) or p["key"] in muted:
             continue
         cmdtxt = "; ".join(" ".join(c) for c in p["cmds"])
         if mode == "dry-run":
-            store.log_fix(con, target, cmdtxt, "dry-run: would run", now)
+            if not store.recent_dry_runs(con, target, now):  # once an hour, not every tick
+                store.log_fix(con, target, cmdtxt, "dry-run: would run", now)
             continue
         n = store.recent_attempts(con, target, now)
         if n >= rem["max_attempts"]:
