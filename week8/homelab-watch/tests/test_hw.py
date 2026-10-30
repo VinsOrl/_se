@@ -334,6 +334,11 @@ class Api(unittest.TestCase):
         run.assert_not_called()
         self.assertTrue(d["ready"] and d["actions"])
 
+    def test_page_is_served_without_external_assets(self):
+        html = urllib.request.urlopen(self.url + "/").read().decode()
+        self.assertIn("EventSource", html)
+        self.assertNotRegex(html, r"(src|href)=[\"']https?://")
+
     def test_actions_need_token_and_valid_input(self):
         self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1})[0], 403)
         self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1}, "bad")[0], 403)
