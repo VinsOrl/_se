@@ -25,8 +25,8 @@ DEFAULTS = {
                    "temp_warn": 80, "temp_crit": 90, "gpu_temp_warn": 80,
                    "gpu_temp_crit": 90, "load_warn": 1.5, "load_crit": 3.0},
     "history": {"retention_days": 30},
-    "checks": {"ping": [], "dns": [], "http": [], "tcp": [], "backup": []},
-    "alerts": {"cooldown_minutes": 30},
+    "checks": {"ping": [], "dns": [], "http": [], "tcp": [], "backup": [], "ignore_containers": []},
+    "alerts": {"cooldown_minutes": 30, "min_samples": 2},
     "remediation": {"enabled": False, "mode": "dry-run", "token": "",
                     "fix_units": [], "fix_containers": [], "max_attempts": 3,
                     "settle_seconds": 3},
@@ -52,6 +52,7 @@ retention_days = 30
 
 [checks]
 ping = []               # e.g. ["1.1.1.1", "192.168.1.1"]
+ignore_containers = []  # container names never reported (one-shot jobs etc.)
 dns = []                # e.g. ["example.com"]
 
 # [[checks.http]]       # repeat the block for more checks
@@ -73,6 +74,7 @@ dns = []                # e.g. ["example.com"]
 
 [alerts]
 cooldown_minutes = 30
+min_samples = 2         # a check must be bad this many samples in a row before it alerts
 # Secrets may come from env vars: use e.g. webhook_url_env = "HW_DISCORD_URL"
 # [alerts.discord]
 # webhook_url = "https://discord.com/api/webhooks/..."
@@ -294,7 +296,10 @@ def c_docker(cfg, out):
     if not rows:
         out.add("Docker", "docker", "ok", "No containers")
     for name, status, image in rows:
-        bad = not status.startswith("Up") or "unhealthy" in status or "Restarting" in status
+        if name in cfg["checks"]["ignore_containers"]:
+            continue
+        # clean one-shot exits (code 0) are fine; non-zero exit, restarting, unhealthy are not
+        bad = "unhealthy" in status or not status.startswith(("Up", "Exited (0)"))
         out.add("Docker", f"container:{name}", "warn" if bad else "ok",
                 f"{name} ({image}): {status}", fix=["container", name] if bad else None)
 

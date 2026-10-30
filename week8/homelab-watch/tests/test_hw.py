@@ -40,6 +40,26 @@ class Thresholds(unittest.TestCase):
         self.assertTrue(any("boom" in n for n in s["notes"]))
 
 
+class Containers(unittest.TestCase):
+    def rows(self, status, ignore=()):
+        cfg = collectors.load_config("/nonexistent")
+        cfg["checks"]["ignore_containers"] = list(ignore)
+        out = collectors.Out()
+        with mock.patch.object(collectors.shutil, "which", return_value="/x"), \
+                mock.patch.object(collectors, "run", return_value=f"c|{status}|img"):
+            collectors.c_docker(cfg, out)
+        return out.results
+
+    def test_status_rules(self):
+        for status, want in [("Up 2 hours", "ok"), ("Exited (0) 2 weeks ago", "ok"),
+                             ("Exited (1) 5 minutes ago", "warn"), ("Restarting (1) 3s ago", "warn"),
+                             ("Up 1 hour (unhealthy)", "warn")]:
+            self.assertEqual(self.rows(status)[0]["status"], want, status)
+
+    def test_ignored(self):
+        self.assertEqual(self.rows("Exited (1) now", ignore=["c"]), [])
+
+
 class Config(unittest.TestCase):
     def test_defaults_and_override_and_world_readable_warning(self):
         with tempfile.TemporaryDirectory() as d:
@@ -74,10 +94,23 @@ class Retention(unittest.TestCase):
         self.assertEqual(len(store.history(con, hours=1, now=1000 + 7200)), 1)
 
 
+class Migration(unittest.TestCase):
+    def test_v1_db_gets_bad_column(self):
+        with tempfile.TemporaryDirectory() as d:
+            import sqlite3
+            c = sqlite3.connect(Path(d, "h.db"))
+            c.execute("CREATE TABLE alert_state(key TEXT PRIMARY KEY, status TEXT, text TEXT, "
+                      "last_alert INTEGER, alerted INTEGER)")
+            c.commit(); c.close()
+            con = store.connect(Path(d, "h.db"))
+            con.execute("SELECT bad FROM alert_state")
+
+
 class Alerts(unittest.TestCase):
     def setUp(self):
         self.con = store.connect(":memory:")
         self.cfg = collectors.load_config("/nonexistent")
+        self.cfg["alerts"]["min_samples"] = 1
         self.sent = []
         self.send = lambda cfg, text, host="", lines=(): self.sent.append(text) or []
 
@@ -99,9 +132,20 @@ class Alerts(unittest.TestCase):
         self.run_([("x", "crit")], 0)
         self.run_([("x", "ok")], 60)
         self.assertEqual(self.run_([("x", "crit")], 120), [])      # within 30 min
-        self.assertEqual(len(self.run_([("x", "crit")], 0 + 31 * 60 + 200)), 0)  # no change, no alert
-        self.run_([("x", "ok")], 4000)
-        self.assertEqual(len(self.run_([("x", "crit")], 5000)), 1)  # cooldown over
+        self.assertEqual(len(self.run_([("x", "crit")], 31 * 60 + 200)), 1)  # still bad, cooldown over
+
+    def test_flap_protection_needs_consecutive_bad_samples(self):
+        self.cfg["alerts"]["min_samples"] = 2
+        self.assertEqual(self.run_([("t", "warn")], 0), [])        # 1st bad sample
+        self.assertEqual(self.run_([("t", "ok")], 300), [])        # blip, resets
+        self.assertEqual(self.run_([("t", "warn")], 600), [])
+        self.assertEqual(len(self.run_([("t", "warn")], 900)), 1)  # 2nd in a row
+        self.assertEqual(self.run_([("t", "warn")], 1200), [])
+
+    def test_blip_never_alerts_or_recovers(self):
+        self.cfg["alerts"]["min_samples"] = 2
+        self.run_([("t", "warn")], 0)
+        self.assertEqual(self.run_([("t", "ok")], 300), [])
 
     def test_vanished_check_counts_as_recovery(self):
         self.run_([("unit:a", "warn")], 0)
