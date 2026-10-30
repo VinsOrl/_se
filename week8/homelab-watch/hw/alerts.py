@@ -44,7 +44,8 @@ def send(cfg, text, host="", lines=()):
 def process(con, cfg, snap, notes=None, extra=(), send=send):
     """Compare each check with its last known state; send one batched message.
 
-    - ok -> warn/crit (or warn <-> crit): alert, unless within the cooldown of the last alert
+    - bad for `min_samples` samples in a row: alert (unless within the cooldown of the last alert)
+    - warn <-> crit while alerted: alert again
     - back to ok: recovery message, only if a failure alert was actually sent
     - unchanged: silence
     Returns the list of message lines.
@@ -56,23 +57,27 @@ def process(con, cfg, snap, notes=None, extra=(), send=send):
     for key, st, text in con.execute("SELECT key, status, text FROM alert_state"):
         if key not in current and st != "ok":
             current[key] = ("ok", text)
-    lines = []
+    lines, need = [], cfg["alerts"]["min_samples"]
     for key, (st, text) in current.items():
-        row = con.execute("SELECT status, last_alert, alerted FROM alert_state WHERE key=?",
+        row = con.execute("SELECT status, last_alert, alerted, bad FROM alert_state WHERE key=?",
                           (key,)).fetchone()
-        old, last, alerted = row or ("ok", None, 0)
-        if st == old:
-            continue
+        old, last, alerted, bad = row or ("ok", None, 0, 0)
         if st == "ok":
+            if not row:
+                continue
             if alerted:
                 lines.append(f"✅ RECOVERED: {text}")
-            alerted = 0
-        elif last is None or now - last >= cool:
-            tried = f" ({notes[key]})" if key in notes else ""
-            lines.append(f"{ICON[st]} {st.upper()}: {text}{tried}")
-            alerted, last = 1, now
-        con.execute("INSERT OR REPLACE INTO alert_state VALUES(?,?,?,?,?)",
-                    (key, st, text, last, alerted))
+            alerted, bad = 0, 0
+        else:
+            bad += 1
+            # alert once the streak is long enough; again only if it changes warn <-> crit
+            fresh = not alerted or st != old
+            if bad >= need and fresh and (last is None or now - last >= cool):
+                tried = f" ({notes[key]})" if key in notes else ""
+                lines.append(f"{ICON[st]} {st.upper()}: {text}{tried}")
+                alerted, last = 1, now
+        con.execute("INSERT OR REPLACE INTO alert_state VALUES(?,?,?,?,?,?)",
+                    (key, st, text, last, alerted, bad))
     con.commit()
     lines += list(extra)
     if lines:

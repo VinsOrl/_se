@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS samples(ts INTEGER PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS fix_log(id INTEGER PRIMARY KEY, ts INTEGER, target TEXT,
                                    command TEXT, result TEXT);
 CREATE TABLE IF NOT EXISTS alert_state(key TEXT PRIMARY KEY, status TEXT, text TEXT,
-                                       last_alert INTEGER, alerted INTEGER);
+                                       last_alert INTEGER, alerted INTEGER,
+                                       bad INTEGER DEFAULT 0);
 """
 
 
@@ -20,6 +21,10 @@ def connect(path=DB_PATH):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(path)
     con.executescript(SCHEMA)
+    try:  # DBs created by v1 lack the flap counter
+        con.execute("ALTER TABLE alert_state ADD COLUMN bad INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
     return con
 
 
