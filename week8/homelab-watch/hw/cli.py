@@ -4,7 +4,7 @@ import json
 import secrets
 import sys
 
-from . import collectors
+from . import collectors, store
 
 
 def cmd_report(a, cfg):
@@ -26,6 +26,13 @@ def cmd_check(a, cfg):
     sys.exit(collectors.RANK[snap["status"]])
 
 
+def cmd_collect(a, cfg):
+    snap = collectors.collect_all(cfg)
+    con = store.connect()
+    store.save(con, snap, cfg["history"]["retention_days"])
+    print(f"stored sample: {snap['status']} ({len(snap['results'])} checks)")
+
+
 def cmd_init(a, cfg):
     p = collectors.CONFIG_PATH
     if p.exists() and not a.force:
@@ -44,6 +51,8 @@ def main(argv=None):
     s.add_argument("--format", choices=["md", "json"], default="md")
     s.set_defaults(fn=cmd_report)
     sub.add_parser("check", help="exit 0/1/2 = ok/warn/crit").set_defaults(fn=cmd_check)
+    s = sub.add_parser("collect", help="take one sample and store it")
+    s.set_defaults(fn=cmd_collect)
     s = sub.add_parser("init", help="write default config")
     s.add_argument("--force", action="store_true")
     s.set_defaults(fn=cmd_init)
