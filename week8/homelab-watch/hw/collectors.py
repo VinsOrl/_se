@@ -152,7 +152,7 @@ def gb(n):
 
 def uptime_load():
     try:
-        secs = float(open("/proc/uptime").read().split()[0])
+        secs = float(Path("/proc/uptime").read_text().split()[0])
         load = os.getloadavg()
     except Exception:
         return None, None, os.cpu_count() or 1
@@ -164,7 +164,7 @@ def uptime_load():
 def memory():
     info = {}
     try:
-        for line in open("/proc/meminfo"):
+        for line in Path("/proc/meminfo").read_text().splitlines():
             k, v = line.split(":")
             info[k] = int(v.split()[0]) * 1024
     except Exception:
@@ -178,7 +178,7 @@ def memory():
 def disks():
     seen, out = set(), []
     try:
-        lines = open("/proc/mounts").read().splitlines()
+        lines = Path("/proc/mounts").read_text().splitlines()
     except Exception:
         return out
     for line in lines:
@@ -200,8 +200,8 @@ def temps():
         for z in sorted(os.listdir(base)):
             if z.startswith("thermal_zone"):
                 try:
-                    t = int(open(f"{base}/{z}/temp").read()) / 1000
-                    out.append((z, open(f"{base}/{z}/type").read().strip(), t))
+                    t = int(Path(f"{base}/{z}/temp").read_text()) / 1000
+                    out.append((z, Path(f"{base}/{z}/type").read_text().strip(), t))
                 except Exception:
                     pass
     return out
