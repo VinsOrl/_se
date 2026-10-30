@@ -134,9 +134,10 @@ def make_handler(cfg, engine, db_path):
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            sent, version = None, -1
+            sent = None
             try:
                 while not engine.stop.is_set():
+                    version = engine.version  # read before the snapshot so no change is missed
                     con = store.connect(db_path)
                     try:
                         snap = view(cfg, con, engine.snapshot(), self.client_address[0])
@@ -154,7 +155,7 @@ def make_handler(cfg, engine, db_path):
                         self.wfile.write(b"event: ping\ndata: {}\n\n")
                     self.wfile.flush()
                     sent = cur
-                    version = engine.wait(version, 15)
+                    engine.wait(version, 15)
             except OSError:  # client went away
                 pass
 
@@ -168,6 +169,8 @@ def make_handler(cfg, engine, db_path):
                 return self.send(403, {"error": "bad or missing token"})
             try:
                 n = int(self.headers.get("Content-Length", 0))
+                if not 0 <= n <= 4096:
+                    return self.send(413, {"error": "body too large"})
                 body = json.loads(self.rfile.read(n) or b"{}")
             except ValueError:
                 return self.send(400, {"error": "bad request"})

@@ -341,6 +341,7 @@ class Api(unittest.TestCase):
         self.assertEqual(self.post("/api/mute", {"key": "k", "hours": 1}, "tok")[0], 200)
         self.assertEqual(self.post("/api/fix", {"key": "k"}, "tok")[0], 403)  # not in ask mode
         self.assertEqual(self.post("/api/nope", {}, "tok")[0], 404)
+        self.assertEqual(self.post("/api/mute", {"key": "k" * 5000, "hours": 1}, "tok")[0], 413)
 
     def test_sse_sends_full_snapshot_first(self):
         r = urllib.request.urlopen(self.url + "/events")
