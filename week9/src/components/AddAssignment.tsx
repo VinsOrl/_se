@@ -34,14 +34,14 @@ export default function AddAssignment({ onAdd, onClose }: AddAssignmentProps) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Assignment name (e.g., Math Chapter 12)"
-              className="w-full px-4 py-3 rounded-xl bg-paper dark:bg-ink-dark border border-line/50 text-ink dark:text-ink-light placeholder-muted dark:placeholder-muted-dark outline-none focus:border-sage transition-colors text-[18px] leading-relaxed"
+              className="w-full px-4 py-3 rounded-xl bg-paper dark:bg-paper-dark border border-line/50 text-ink dark:text-ink-light placeholder-muted dark:placeholder-muted-dark outline-none focus:border-sage transition-colors text-[18px] leading-relaxed"
             />
             <input
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl bg-paper dark:bg-ink-dark border border-line/50 text-ink dark:text-ink-light outline-none focus:border-sage transition-colors text-[18px] leading-relaxed"
+              className="w-full px-4 py-3 rounded-xl bg-paper dark:bg-paper-dark border border-line/50 text-ink dark:text-ink-light outline-none focus:border-sage transition-colors text-[18px] leading-relaxed"
             />
             <div className="flex gap-3">
               <button

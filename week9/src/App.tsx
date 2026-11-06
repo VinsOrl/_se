@@ -32,7 +32,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-paper dark:bg-ink-dark transition-colors">
+    <div className="min-h-screen bg-paper dark:bg-paper-dark transition-colors">
       <Navbar onAdd={() => setShowAdd(true)} />
       {!showAdd && <Hero />}
       {showAdd && <AddAssignment onAdd={(name, date) => { add(name, date); setShowAdd(false) }} onClose={() => setShowAdd(false)} />}

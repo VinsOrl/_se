@@ -7,7 +7,7 @@ interface NavbarProps {
 
 export default function Navbar({ onAdd }: NavbarProps) {
   return (
-    <nav className="h-[76px] flex items-center justify-between bg-paper dark:bg-ink-dark px-6">
+    <nav className="h-[76px] flex items-center justify-between bg-paper dark:bg-paper-dark px-6">
       <div className="page-container flex items-center gap-2">
         <span className="font-heading text-xl font-medium text-ink dark:text-ink-light">
           Deadlinetracker
