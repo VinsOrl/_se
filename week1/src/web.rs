@@ -40,8 +40,11 @@ async fn send(spec: &crate::RequestSpec) -> Result<String, String> {
     let raw_promise = js_sys::Function::new_with_args("s", r#"return new Promise(function(resolve,reject){
 var i={redirect:s.follow?"follow":"manual"};
 if(s.method)i.method=s.method;
-if(s.body!==undefined&&s.body!==null){i.body=s.body;var h={},ct=false;if(s.headers)for(var j=0;j<s.headers.length;j++){h[s.headers[j][0]]=s.headers[j][1];if(s.headers[j][0].toLowerCase()==="content-type")ct=true;}if(!ct)i.headers={"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"};else i.headers=h;}
-var sg=null;if(s.max_time_ms&&s.max_time_ms>0){var ac=new AbortController();sg=ac.signal;setTimeout(function(){ac.abort()},s.max_time_ms);}if(sg)i.signal=sg;
+if(s.body!==undefined&&s.body!==null)i.body=s.body;
+var ct=false,h=null;if(s.headers)for(var j=0;j<s.headers.length;j++){ct=ct||s.headers[j][0].toLowerCase()==="content-type";h=h||{};h[s.headers[j][0]]=s.headers[j][1];}
+if(h&&!i.headers)i.headers=h;
+if(!ct&&h)i.headers["Content-Type"]="application/x-www-form-urlencoded;charset=UTF-8";
+var sg=null;if(s.max_time_ms&&s.max_time_ms>0){var ac=new AbortController();sg=ac.signal;setTimeout(function(){ac.abort()},Math.ceil(s.max_time_ms));}if(sg)i.signal=sg;
 fetch(s.url,i).then(function(r){return r.arrayBuffer().then(function(b){var a=new Uint8Array(b),bt=null,bl=null;try{bt=new TextDecoder("utf-8",{fatal:true}).decode(a);}catch(e){bl=a.length;}var hd={};r.headers.forEach(function(v,k){hd[k]=v;});resolve({st:r.status,stxt:r.statusText,hdrs:hd,bs:bt,bl:bl,dn:(s.output&&s.output!="-")?s.output:null,rd:r.redirected})}).catch(reject);}).catch(function(e){reject(e.message||String(e));});})"#)
     .call1(&js_sys::global(), &obj).map_err(|e| format!("{e:?}"))?;
 
