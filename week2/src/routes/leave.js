@@ -61,4 +61,5 @@ router.patch('/leave/:id', adminOnly, (req, res) => {
   r.changes ? res.json({ ok: true }) : res.status(404).json({ code: 'NOT_FOUND' });
 });
 
+router.uploadDir = dir;
 module.exports = router;

@@ -152,6 +152,32 @@ test('admin creates users; students cannot', async () => {
   assert.equal((await request(app).post('/api/users').set(as('admin')).send(body)).body.code, 'STUDENT_ID_TAKEN');
 });
 
+test('admin deletes users and their data; not self; students cannot', async () => {
+  const mk = (id) => request(app).post('/api/users').set(as('admin')).send({ student_id: id, name: 'Tmp', password: 'longenough1' });
+  const id = (await mk('del0001')).body && db.prepare('SELECT id FROM users WHERE student_id = ?').get('del0001').id;
+  const tok = (await request(app).post('/api/login').send({ student_id: 'del0001', password: 'longenough1' })).body.token;
+  await request(app).post(`/api/enroll/${cid('MA101')}`).set('Authorization', `Bearer ${tok}`);
+  const f = { type: 'sick', date_from: '2026-01-01', date_to: '2026-01-02', reason: 'x' };
+  await request(app).post('/api/leave').set('Authorization', `Bearer ${tok}`).field(f).attach('file', png, { filename: 'a.png', contentType: 'image/png' });
+  const stored = db.prepare('SELECT file_path FROM leave_requests WHERE user_id = ?').get(id).file_path;
+  assert.ok(fs.existsSync(path.join(process.env.UPLOAD_DIR, stored)));
+
+  const list = await request(app).get('/api/users').set(as('admin'));
+  assert.ok(list.body.length >= 4 && list.body.every((u) => !('password_hash' in u)));
+  assert.equal((await request(app).get('/api/users').set(as('a'))).status, 403);
+  assert.equal((await request(app).delete(`/api/users/${id}`).set(as('a'))).status, 403);
+  const adminId = db.prepare("SELECT id FROM users WHERE student_id = 'admin'").get().id;
+  assert.equal((await request(app).delete(`/api/users/${adminId}`).set(as('admin'))).body.code, 'CANNOT_DELETE_SELF');
+  assert.equal((await request(app).delete('/api/users/99999').set(as('admin'))).body.code, 'USER_NOT_FOUND');
+
+  assert.equal((await request(app).delete(`/api/users/${id}`).set(as('admin'))).status, 200);
+  for (const t of ['enrollments', 'leave_requests', 'grades']) assert.equal(db.prepare(`SELECT COUNT(*) n FROM ${t} WHERE user_id = ?`).get(id).n, 0);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(fs.existsSync(path.join(process.env.UPLOAD_DIR, stored)), false);
+  assert.equal((await request(app).get('/api/courses').set('Authorization', `Bearer ${tok}`)).status, 401); // old token dead
+  assert.equal((await request(app).post('/api/login').send({ student_id: 'del0001', password: 'longenough1' })).status, 401);
+});
+
 test('login rate limit and JWT_SECRET required', async () => {
   let last;
   for (let i = 0; i < 12; i++) last = await request(app).post('/api/login').send({ student_id: '111210529', password: 'bad' });
@@ -167,6 +193,6 @@ test('i18n: dictionaries have identical keys', () => {
 });
 
 test('i18n: every error code the API can return has a translation', () => {
-  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'TOO_MANY_ATTEMPTS', 'STUDENT_ID_TAKEN', 'SERVER_ERROR'])
+  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'TOO_MANY_ATTEMPTS', 'STUDENT_ID_TAKEN', 'CANNOT_DELETE_SELF', 'USER_NOT_FOUND', 'SERVER_ERROR'])
     assert.ok(dict.en['err.' + c], c);
 });

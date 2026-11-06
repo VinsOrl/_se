@@ -23,11 +23,12 @@
 - `POST /api/users` (admin only, 403 for students): creates a `student` or `admin`.
 - Shared validation: ID 3–20 letters/digits, name 1–50 chars, password 8–72 bytes (bcrypt ignores bytes past 72). Duplicate ID returns `STUDENT_ID_TAKEN` (409).
 - UI: Register link and form on the login screen; a **Users** tab visible to admins only. Both in EN and 繁中.
+- **Admin remove account:** `GET /api/users` (never returns password hashes) and `DELETE /api/users/:id`, admin only. Deletion runs in one transaction (enrollments, leave requests, grades, then the user) and then removes the user's uploaded images from disk. An admin cannot delete themselves, which also means at least one admin always remains. A deleted user's old JWT stops working at once because the role/user is re-read from the DB on every request. The UI uses a two-step button (Delete, then Confirm delete?) instead of a blocking `confirm()` dialog.
 - Also fixed: the "logged out" message was being cleared right after it appeared.
 - Not added: email verification, password reset, and user-enumeration protection on signup (the duplicate-ID error reveals which IDs exist, which is normal for student-ID systems).
 
 ## Test results (final run)
-- `npm test`: 15 pass, 0 fail.
+- `npm test`: 16 pass, 0 fail.
 - `npm run test:e2e`: 7 pass, 0 fail.
 
 ## Bugs found while testing

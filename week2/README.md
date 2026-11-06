@@ -27,4 +27,5 @@ npm run test:e2e         # Playwright, own server on :3101 and temp DB
 ## Accounts
 - Students can self-register on the login screen (`POST /api/register`, role is always `student`).
 - Admins create student or admin accounts from the **Users** tab (`POST /api/users`).
+- Admins can also list and delete accounts there (`GET /api/users`, `DELETE /api/users/:id`). Deleting removes the user's enrollments, leave requests (and uploaded images) and grades. You can't delete yourself.
 - ID: 3–20 letters/digits. Password: 8–72 bytes.

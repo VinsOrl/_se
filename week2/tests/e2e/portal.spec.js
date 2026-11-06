@@ -112,6 +112,13 @@ test('signup then login; admin creates an account', async ({ page }) => {
   await page.fill('#user-form [name=password]', 'longenough1');
   await page.click('#user-form button');
   await expect(page.locator('#msg')).toHaveText('That student ID is already registered.');
+  const row = page.locator('tr', { hasText: 'e2e0002' });
+  await expect(page.locator('tr', { hasText: '(you)' })).toHaveCount(1); // admin row has no delete button
+  await row.locator('[data-del]').click();
+  await expect(row).toContainText('Confirm delete?'); // first click only arms
+  await row.locator('[data-del]').click();
+  await expect(page.locator('#msg')).toHaveText('Account deleted.');
+  await expect(row).toHaveCount(0);
 });
 
 test('admin approves leave; student sees status', async ({ page }) => {

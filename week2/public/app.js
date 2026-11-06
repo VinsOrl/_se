@@ -86,12 +86,16 @@ const pages = {
   },
   async users() {
     if (store.user.role !== 'admin') throw { code: 'FORBIDDEN' };
+    const list = await api('/users');
+    const body = list.map((u) => `<tr><td>${esc(u.student_id)}</td><td>${esc(u.name)}</td><td>${t('role.' + u.role)}</td>
+      <td>${u.student_id === store.user.student_id ? t('you') : `<button class="alt" data-del="${u.id}">${t('delete')}</button>`}</td></tr>`).join('');
     return `<form id="user-form" class="card"><h3>${t('users.new')}</h3>
       <label>${t('studentId')}<input name="student_id" required minlength="3" maxlength="20"></label>
       <label>${t('fullName')}<input name="name" required maxlength="50"></label>
       <label>${t('password')}<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
       <label>${t('role')}<select name="role"><option value="student">${t('role.student')}</option><option value="admin">${t('role.admin')}</option></select></label>
-      <small>${t('hint.user')}</small><button>${t('create')}</button></form>`;
+      <small>${t('hint.user')}</small><button>${t('create')}</button></form>
+      <h3>${t('accounts')}</h3><div class="table-wrap"><table><tr><th>${t('studentId')}</th><th>${t('fullName')}</th><th>${t('role')}</th><th></th></tr>${body}</table></div>`;
   },
   async grades() {
     const sems = ['112-1', '112-2', '113-1', '113-2', '114-1', '114-2', '115-1'];
@@ -152,7 +156,7 @@ document.addEventListener('submit', async (e) => {
       e.target.reset(); location.hash = '#/login'; route(); show('registered', 'ok');
     } else if (e.target.id === 'user-form') {
       await api('/users', { method: 'POST', json: Object.fromEntries(new FormData(e.target)) });
-      e.target.reset(); show('userCreated', 'ok');
+      e.target.reset(); show('userCreated', 'ok'); route();
     } else if (e.target.id === 'leave-form') {
       const body = new FormData(e.target);
       if (!body.get('file')?.size) body.delete('file');
@@ -162,9 +166,15 @@ document.addEventListener('submit', async (e) => {
   } catch (err) { fail(err); }
 });
 
+let armed = null;
 document.addEventListener('click', async (e) => {
   const d = e.target.dataset;
   try {
+    if (d.del && armed !== d.del) { // two-step delete: first click arms, second confirms (no blocking confirm() dialog)
+      armed = d.del; e.target.textContent = t('confirmDelete'); return;
+    }
+    armed = null;
+    if (d.del) { await api('/users/' + d.del, { method: 'DELETE' }); show('userDeleted', 'ok'); route(); return; }
     if (d.add) await api('/enroll/' + d.add, { method: 'POST' });
     else if (d.drop) await api('/enroll/' + d.drop, { method: 'DELETE' });
     else if (d.set) await api('/leave/' + d.id, { method: 'PATCH', json: { status: d.set } });
