@@ -1,7 +1,7 @@
 import { Assignment, UrgencyInfo } from '../types'
 
 export function getUrgency(assignment: Assignment): UrgencyInfo {
-  if (assignment.completed) return { daysRemaining: 999, label: 'Done', colorClass: 'future' }
+  if (assignment.completed) return { daysRemaining: 999, colorClass: 'future' }
 
   const now = new Date()
   now.setHours(0, 0, 0, 0)
@@ -14,15 +14,26 @@ export function getUrgency(assignment: Assignment): UrgencyInfo {
   else if (diff <= 7) colorClass = 'this-week'
   else colorClass = 'future'
 
-  return { daysRemaining: diff, label: formatLabel(diff), colorClass }
+  return { daysRemaining: diff, colorClass }
 }
 
-function formatLabel(days: number): string {
-  if (days < -1) return `${-days}d overdue`
-  if (days === -1) return 'Due yesterday'
-  if (days === 0) return 'Due today'
-  if (days === 1) return 'Due tomorrow'
-  return `Due in ${days} days`
+interface LabelTranslations {
+  done: string
+  overdue: (days: number) => string
+  dueYesterday: string
+  dueToday: string
+  dueTomorrow: string
+  dueInDays: (days: number) => string
+}
+
+export function formatUrgencyLabel(urgency: UrgencyInfo, completed: boolean, t: LabelTranslations): string {
+  if (completed) return t.done
+  const days = urgency.daysRemaining
+  if (days < -1) return t.overdue(-days)
+  if (days === -1) return t.dueYesterday
+  if (days === 0) return t.dueToday
+  if (days === 1) return t.dueTomorrow
+  return t.dueInDays(days)
 }
 
 export function urgencyColor(urgency: UrgencyInfo, dark: boolean): { bg: string; fg: string } {

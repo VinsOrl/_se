@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { LangProvider } from './i18n'
 import './index.css'
 
 // Dark mode: detect system preference on mount
@@ -10,4 +11,8 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   document.documentElement.classList.toggle('dark', e.matches)
 })
 
-createRoot(document.getElementById('root')!).render(<App />)
+createRoot(document.getElementById('root')!).render(
+  <LangProvider>
+    <App />
+  </LangProvider>
+)

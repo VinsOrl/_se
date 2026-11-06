@@ -1,5 +1,6 @@
 import { clsx } from 'clsx'
 import { Filter } from '../types'
+import { useLang } from '../i18n'
 
 interface FilterBarProps {
   filter: Filter
@@ -8,10 +9,12 @@ interface FilterBarProps {
 }
 
 export default function FilterBar({ filter, onFilter, counts }: FilterBarProps) {
+  const { t } = useLang()
+
   const filters: { key: Filter; label: string }[] = [
-    { key: 'all', label: `All (${counts.all})` },
-    { key: 'pending', label: `Pending (${counts.pending})` },
-    { key: 'completed', label: `Completed (${counts.completed})` },
+    { key: 'all', label: `${t.filterAll} (${counts.all})` },
+    { key: 'pending', label: `${t.filterPending} (${counts.pending})` },
+    { key: 'completed', label: `${t.filterCompleted} (${counts.completed})` },
   ]
 
   return (

@@ -1,6 +1,9 @@
 import { motion } from 'motion/react'
+import { useLang } from '../i18n'
 
 export default function Hero() {
+  const { t } = useLang()
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -10,11 +13,11 @@ export default function Hero() {
     >
       <div className="page-container text-center">
         <h1 className="heading-xl mb-4 text-ink dark:text-ink-light">
-          Your semester,{" "}
-          <em className="italic font-normal">tracked</em>.
+          {t.heroTitle1}
+          <em className="italic font-normal">{t.heroTitleEm}</em>.
         </h1>
         <p className="text-muted dark:text-muted-dark text-lg max-w-md mx-auto">
-          Track assignments and deadlines at a glance. Everything saved locally — no account needed.
+          {t.heroSubtitle}
         </p>
       </div>
     </motion.section>

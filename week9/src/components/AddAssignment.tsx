@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { X } from 'lucide-react'
+import { useLang } from '../i18n'
 
 interface AddAssignmentProps {
   onAdd: (name: string, dueDate: string) => void
@@ -8,6 +9,7 @@ interface AddAssignmentProps {
 }
 
 export default function AddAssignment({ onAdd, onClose }: AddAssignmentProps) {
+  const { t } = useLang()
   const [name, setName] = useState('')
   const [dueDate, setDueDate] = useState('')
 
@@ -33,7 +35,7 @@ export default function AddAssignment({ onAdd, onClose }: AddAssignmentProps) {
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Assignment name (e.g., Math Chapter 12)"
+              placeholder={t.namePlaceholder}
               className="w-full px-4 py-3 rounded-xl bg-paper dark:bg-paper-dark border border-line/50 text-ink dark:text-ink-light placeholder-muted dark:placeholder-muted-dark outline-none focus:border-sage transition-colors text-[18px] leading-relaxed"
             />
             <input
@@ -49,7 +51,7 @@ export default function AddAssignment({ onAdd, onClose }: AddAssignmentProps) {
                 disabled={!name.trim() || !dueDate}
                 className="flex-1 rounded-full bg-sage hover:bg-emerald-700 disabled:bg-muted/30 text-white font-bold py-3 px-6 transition-all hover:-translate-y-[2px] disabled:hover:translate-y-0 disabled:cursor-not-allowed"
               >
-                Add
+                {t.add}
               </button>
               <button
                 type="button"

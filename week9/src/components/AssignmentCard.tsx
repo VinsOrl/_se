@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Assignment } from '../types'
-import { getUrgency, urgencyColor } from '../utils/countdown'
+import { getUrgency, urgencyColor, formatUrgencyLabel } from '../utils/countdown'
 import { clsx } from 'clsx'
 import { motion } from 'motion/react'
 import { Check, Trash2 } from 'lucide-react'
+import { useLang } from '../i18n'
 
 interface AssignmentCardProps {
   assignment: Assignment
@@ -12,6 +13,7 @@ interface AssignmentCardProps {
 }
 
 export default function AssignmentCard({ assignment, onToggle, onRemove }: AssignmentCardProps) {
+  const { t, lang } = useLang()
   const [dark, setDark] = useState(document.documentElement.classList.contains('dark'))
   useEffect(() => {
     const obs = new MutationObserver(() => {
@@ -23,12 +25,12 @@ export default function AssignmentCard({ assignment, onToggle, onRemove }: Assig
 
   const urgency = getUrgency(assignment)
   const colors = urgencyColor(urgency, dark)
+  const label = formatUrgencyLabel(urgency, assignment.completed, t)
 
-  const dateStr = new Date(assignment.dueDate + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
+  const dateStr = new Date(assignment.dueDate + 'T00:00:00').toLocaleDateString(
+    lang === 'zh-TW' ? 'zh-TW' : 'en-US',
+    { month: 'short', day: 'numeric', year: 'numeric' }
+  )
 
   return (
     <motion.div
@@ -57,7 +59,7 @@ export default function AssignmentCard({ assignment, onToggle, onRemove }: Assig
           <button
             onClick={onRemove}
             className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-black/10 transition-all"
-            title="Remove"
+            title={t.remove}
           >
             <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
           </button>
@@ -77,7 +79,7 @@ export default function AssignmentCard({ assignment, onToggle, onRemove }: Assig
             className="text-sm font-bold tracking-wide dark:text-ink-light"
             style={{ color: colors.fg }}
           >
-            {urgency.label}
+            {label}
           </span>
           <button
             onClick={onToggle}
@@ -89,7 +91,7 @@ export default function AssignmentCard({ assignment, onToggle, onRemove }: Assig
             )}
           >
             <Check className="w-4 h-4" />
-            <span>{assignment.completed ? 'Done' : 'Pending'}</span>
+            <span>{assignment.completed ? t.done : t.pending}</span>
           </button>
         </div>
       </div>
