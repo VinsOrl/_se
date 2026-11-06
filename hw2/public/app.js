@@ -158,7 +158,10 @@ document.addEventListener('click', async (e) => {
   } catch (err) { fail(err); route(); }
 });
 
-document.addEventListener('input', (e) => { if (e.target.id === 'q') route().then(() => { const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); });
+const search = (e) => { if (e.target.id === 'q' && !e.isComposing) route().then(() => { const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }); };
+// skip re-render mid-IME composition (Chinese input), search once it ends
+document.addEventListener('input', search);
+document.addEventListener('compositionend', search);
 document.addEventListener('change', (e) => { if (e.target.id === 'sem') route(); });
 $('#lang').onchange = (e) => { setLang(e.target.value); renderMsg(); route(); };
 $('#logout').onclick = () => logout();

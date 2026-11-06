@@ -7,7 +7,7 @@ module.exports = defineConfig({
   webServer: {
     command: `rm -f ${db} && node server.js`,
     url: 'http://localhost:3101',
-    env: { PORT: '3101', DB_FILE: db, JWT_SECRET: 'e2e-secret' },
+    env: { UPLOAD_DIR: '/tmp/nqu-e2e-uploads', PORT: '3101', DB_FILE: db, JWT_SECRET: 'e2e-secret-0123456789' },
     reuseExistingServer: false,
   },
 });

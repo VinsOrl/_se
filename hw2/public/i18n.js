@@ -17,7 +17,7 @@ const dict = {
     'err.TIME_CONFLICT': 'Time conflict with a course you are enrolled in.', 'err.CREDIT_CAP': 'Credit cap of 25 exceeded.',
     'err.INVALID_INPUT': 'Please check the form and try again.', 'err.INVALID_FILE': 'Only image files (PNG, JPG, GIF, WebP) are allowed.',
     'err.FILE_TOO_LARGE': 'File is larger than 2 MB.', 'err.COURSE_NOT_FOUND': 'Course not found.', 'err.NOT_ENROLLED': 'You are not enrolled in this course.',
-    'err.NOT_FOUND': 'Not found.', 'err.SERVER_ERROR': 'Server error. Try again later.', 'err.NETWORK': 'Cannot reach the server.',
+    'err.NOT_FOUND': 'Not found.', 'err.TOO_MANY_ATTEMPTS': 'Too many failed logins. Try again in 15 minutes.', 'err.SERVER_ERROR': 'Server error. Try again later.', 'err.NETWORK': 'Cannot reach the server.',
   },
   'zh-TW': {
     title: '國立金門大學校務系統', studentId: '學號', password: '密碼', login: '登入', logout: '登出',
@@ -37,7 +37,7 @@ const dict = {
     'err.TIME_CONFLICT': '與已選課程時間衝堂。', 'err.CREDIT_CAP': '超過學分上限 25 學分。',
     'err.INVALID_INPUT': '請檢查表單後再試一次。', 'err.INVALID_FILE': '僅接受圖片檔（PNG、JPG、GIF、WebP）。',
     'err.FILE_TOO_LARGE': '檔案超過 2 MB。', 'err.COURSE_NOT_FOUND': '找不到此課程。', 'err.NOT_ENROLLED': '您尚未加選此課程。',
-    'err.NOT_FOUND': '找不到資料。', 'err.SERVER_ERROR': '伺服器錯誤，請稍後再試。', 'err.NETWORK': '無法連線到伺服器。',
+    'err.NOT_FOUND': '找不到資料。', 'err.TOO_MANY_ATTEMPTS': '登入失敗次數過多，請 15 分鐘後再試。', 'err.SERVER_ERROR': '伺服器錯誤，請稍後再試。', 'err.NETWORK': '無法連線到伺服器。',
   },
 };
 const detect = () => { try { return localStorage.getItem('lang'); } catch { return null; } };

@@ -1,12 +1,18 @@
 const express = require('express');
 const path = require('path');
 const openDb = require('./db');
-const { router: login, auth } = require('./auth');
+const { secret, router: login, auth } = require('./auth');
 
 module.exports = (dbFile) => {
+  secret(); // fail at startup, not at first login, if JWT_SECRET is missing/weak
   const app = express();
   app.locals.db = openDb(dbFile);
   app.disable('x-powered-by');
+  app.use((req, res, next) => {
+    res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer',
+      'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'" });
+    next();
+  });
   app.use(express.json({ limit: '10kb' }));
   app.use('/api', login);
   app.use('/api', auth);

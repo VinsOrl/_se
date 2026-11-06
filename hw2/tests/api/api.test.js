@@ -1,4 +1,5 @@
-process.env.JWT_SECRET = 'test-secret';
+process.env.JWT_SECRET = 'test-secret-0123456789';
+process.env.UPLOAD_DIR = require('fs').mkdtempSync(require('path').join(require('os').tmpdir(), 'nqu-up-'));
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('os');
@@ -79,8 +80,9 @@ test('course full', async () => {
 test('credit cap 25', async () => {
   const ins = db.prepare('INSERT INTO courses(code,name_en,name_zh,teacher_en,teacher_zh,credits,day,start_period,periods,capacity) VALUES(?,?,?,?,?,3,7,?,1,10)');
   const ids = [];
-  for (let p = 1; p <= 9; p++) ids.push(ins.run('X' + p, 'x', 'x', 't', 't', p > 8 ? 8 : p).lastInsertRowid);
-  ids[8] = db.prepare('UPDATE courses SET day = 6, start_period = 8 WHERE code = ?').run('X9') && ids[8];
+  for (let p = 1; p <= 8; p++) ids.push(ins.run('X' + p, 'x', 'x', 't', 't', p).lastInsertRowid);
+  ids.push(db.prepare('INSERT INTO courses(code,name_en,name_zh,teacher_en,teacher_zh,credits,day,start_period,periods,capacity) VALUES(?,?,?,?,?,3,6,8,1,10)')
+    .run('X9', 'x', 'x', 't', 't').lastInsertRowid);
   const codes = [];
   for (const id of ids) codes.push((await request(app).post(`/api/enroll/${id}`).set(as('b'))).body.code);
   assert.equal(codes.slice(0, 8).every((c) => c === undefined), true);
@@ -125,11 +127,21 @@ test('grades only own', async () => {
   assert.equal((await request(app).get('/api/grades?semester=x').set(as('a'))).status, 400);
 });
 
+test('login rate limit and JWT_SECRET required', async () => {
+  let last;
+  for (let i = 0; i < 12; i++) last = await request(app).post('/api/login').send({ student_id: '111210529', password: 'bad' });
+  assert.equal(last.status, 429);
+  assert.equal((await request(app).post('/api/login').send({ student_id: '111210529', password: 'demo1234' })).status, 429);
+  const s = process.env.JWT_SECRET; delete process.env.JWT_SECRET;
+  assert.throws(() => createApp(':memory:'), /JWT_SECRET/);
+  process.env.JWT_SECRET = s;
+});
+
 test('i18n: dictionaries have identical keys', () => {
   assert.deepEqual(Object.keys(dict.en).sort(), Object.keys(dict['zh-TW']).sort());
 });
 
 test('i18n: every error code the API can return has a translation', () => {
-  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'SERVER_ERROR'])
+  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'TOO_MANY_ATTEMPTS', 'SERVER_ERROR'])
     assert.ok(dict.en['err.' + c], c);
 });
