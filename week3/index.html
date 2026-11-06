@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quote &amp; Invoice</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, "Noto Sans TC", sans-serif; color: #1a1a1a; background: #eceff3; }
+  main { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 20px; padding: 20px; align-items: start; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  form { background: #fff; padding: 16px; border-radius: 8px; }
+  fieldset { border: 0; border-top: 1px solid #ddd; margin: 12px 0 0; padding: 8px 0 0; }
+  legend { font-weight: 600; padding-right: 8px; }
+  label { display: block; margin: 6px 0; font-size: 13px; color: #444; }
+  input, select, textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid #bbb; border-radius: 4px; background: #fff; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+  .bad { border-color: #c00; background: #fff4f4; }
+  .row { display: grid; grid-template-columns: 1fr 60px 90px 32px; gap: 4px; margin-bottom: 4px; }
+  button { font: inherit; padding: 6px 12px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; border-radius: 4px; cursor: pointer; }
+  button.primary { background: #1d4ed8; color: #fff; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; }
+  #msg { color: #c00; margin-top: 10px; min-height: 1.5em; }
+  #items.bad { padding: 4px; border: 1px solid #c00; border-radius: 4px; }
+
+  #doc { background: #fff; padding: 36px; min-height: 600px; box-shadow: 0 1px 4px #0002; }
+  #doc h1 { text-align: center; margin: 0 0 4px; letter-spacing: 6px; }
+  #doc .meta { display: flex; justify-content: space-between; margin-bottom: 16px; color: #444; }
+  #doc .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  #doc table { width: 100%; border-collapse: collapse; }
+  #doc th, #doc td { border-bottom: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+  #doc .n { text-align: right; }
+  #doc .tot { margin: 12px 0 0 auto; width: 260px; }
+  #doc .tot div { display: flex; justify-content: space-between; padding: 2px 0; }
+  #doc .grand { font-weight: 700; border-top: 2px solid #1a1a1a; margin-top: 4px; padding-top: 4px !important; }
+  #doc .cap { margin-top: 12px; font-weight: 600; }
+  #doc .note { margin-top: 16px; white-space: pre-wrap; color: #444; }
+
+  @media print {
+    body { background: #fff; }
+    form { display: none; }
+    main { display: block; padding: 0; }
+    #doc { box-shadow: none; padding: 0; min-height: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <form id="f" onsubmit="return false" autocomplete="off">
+    <label>Type 類型
+      <select id="type"><option value="quote">報價單 Quote</option><option value="invoice">請款單 Invoice</option></select></label>
+    <label>Date 日期 <input id="date" type="date"></label>
+    <fieldset><legend>Seller 賣方</legend>
+      <label>Name 名稱 <input id="seller"></label>
+      <label>Tax ID 統編 <input id="sTax"></label>
+      <label>Contact 聯絡 <input id="sContact"></label>
+    </fieldset>
+    <fieldset><legend>Client 客戶</legend>
+      <label>Name 名稱 <input id="client"></label>
+      <label>Contact 聯絡 <input id="cContact"></label>
+    </fieldset>
+    <fieldset><legend>Items 項目</legend>
+      <div id="items"></div>
+      <button type="button" id="add">+ Add item</button>
+    </fieldset>
+    <fieldset><legend>Totals 金額</legend>
+      <label>Tax 稅別
+        <select id="taxMode"><option value="none">None 免稅</option><option value="exclusive">+5% 外加</option><option value="inclusive">5% included 內含</option></select></label>
+      <label>Discount 折扣 <input id="discount" type="number" min="0" step="any"></label>
+      <label>Note 備註 <textarea id="note" rows="3"></textarea></label>
+    </fieldset>
+    <div id="msg" role="alert"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="print">Print / Save PDF</button>
+      <button type="button" id="clear">Clear</button>
+    </div>
+  </form>
+  <article id="doc"></article>
+</main>
+<script src="lib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
