@@ -16,7 +16,7 @@ module.exports = (dbFile) => {
   app.use(express.json({ limit: '10kb' }));
   app.use('/api', login);
   app.use('/api', auth);
-  app.use('/api', require('./routes/courses'), require('./routes/leave'), require('./routes/grades'));
+  app.use('/api', require('./routes/courses'), require('./routes/users'), require('./routes/leave'), require('./routes/grades'));
   app.use('/api', (req, res) => res.status(404).json({ code: 'NOT_FOUND' }));
   app.use(express.static(path.join(__dirname, '..', 'public')));
   app.use((err, req, res, next) => {

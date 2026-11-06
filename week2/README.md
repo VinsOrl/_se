@@ -23,3 +23,8 @@ npm run test:e2e         # Playwright, own server on :3101 and temp DB
 | 111210529 | student |
 | 111210555 | student |
 | admin | admin |
+
+## Accounts
+- Students can self-register on the login screen (`POST /api/register`, role is always `student`).
+- Admins create student or admin accounts from the **Users** tab (`POST /api/users`).
+- ID: 3–20 letters/digits. Password: 8–72 bytes.

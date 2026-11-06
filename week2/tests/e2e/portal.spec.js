@@ -5,16 +5,16 @@ const os = require('os');
 
 const login = async (page, id = '111210529') => {
   await page.goto('/');
-  await page.fill('input[name=student_id]', id);
-  await page.fill('input[name=password]', 'demo1234');
+  await page.fill('#login-form [name=student_id]', id);
+  await page.fill('#login-form [name=password]', 'demo1234');
   await page.click('#login-form button');
   await expect(page.locator('#nav')).toBeVisible();
 };
 
 test('login -> add course -> timetable -> drop -> logout', async ({ page }) => {
   await page.goto('/');
-  await page.fill('input[name=student_id]', '111210529');
-  await page.fill('input[name=password]', 'wrong');
+  await page.fill('#login-form [name=student_id]', '111210529');
+  await page.fill('#login-form [name=password]', 'wrong');
   await page.click('#login-form button');
   await expect(page.locator('#msg')).toHaveText('Wrong student ID or password.');
   await login(page);
@@ -30,7 +30,7 @@ test('login -> add course -> timetable -> drop -> logout', async ({ page }) => {
   await expect(page.locator('td.slot')).toHaveCount(0);
   await page.click('#logout');
   await expect(page.locator('#login-form')).toBeVisible();
-  await expect(page.locator('input[name=student_id]')).toHaveValue('');
+  await expect(page.locator('#login-form [name=student_id]')).toHaveValue('');
   expect(await page.evaluate(() => sessionStorage.getItem('token'))).toBeNull();
 });
 
@@ -84,6 +84,34 @@ test('language switch changes labels and persists', async ({ page }) => {
   await expect(page.locator('th', { hasText: '週一' })).toBeVisible();
   await page.selectOption('#lang', 'en');
   await expect(page.locator('th', { hasText: 'Mon' })).toBeVisible();
+});
+
+test('signup then login; admin creates an account', async ({ page }) => {
+  await page.goto('/');
+  await page.click('a[href="#/register"]');
+  await page.fill('#register-form [name=student_id]', 'e2e0001');
+  await page.fill('#register-form [name=name]', 'E2E Kid');
+  await page.fill('#register-form [name=password]', 'longenough1');
+  await page.click('#register-form button');
+  await expect(page.locator('#msg')).toHaveText('Account created. You can log in now.');
+  await page.fill('#login-form [name=student_id]', 'e2e0001');
+  await page.fill('#login-form [name=password]', 'longenough1');
+  await page.click('#login-form button');
+  await expect(page.locator('#nav')).toBeVisible();
+  await expect(page.locator('#nav-users')).toBeHidden(); // students don't see Users
+  await page.click('#logout');
+  await login(page, 'admin');
+  await page.click('#nav-users');
+  await page.fill('#user-form [name=student_id]', 'e2e0002');
+  await page.fill('#user-form [name=name]', 'Made By Admin');
+  await page.fill('#user-form [name=password]', 'longenough1');
+  await page.click('#user-form button');
+  await expect(page.locator('#msg')).toHaveText('Account created.');
+  await page.fill('#user-form [name=student_id]', 'e2e0002');
+  await page.fill('#user-form [name=name]', 'Dup');
+  await page.fill('#user-form [name=password]', 'longenough1');
+  await page.click('#user-form button');
+  await expect(page.locator('#msg')).toHaveText('That student ID is already registered.');
 });
 
 test('admin approves leave; student sees status', async ({ page }) => {

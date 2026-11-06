@@ -15,7 +15,7 @@
 </header>
 <nav id="nav" hidden>
   <a href="#/courses" data-i18n="nav.courses"></a><a href="#/timetable" data-i18n="nav.timetable"></a>
-  <a href="#/leave" data-i18n="nav.leave"></a><a href="#/grades" data-i18n="nav.grades"></a>
+  <a href="#/leave" data-i18n="nav.leave"></a><a href="#/grades" data-i18n="nav.grades"></a><a href="#/users" id="nav-users" data-i18n="nav.users" hidden></a>
 </nav>
 <main>
   <p id="msg" role="alert"></p>
@@ -24,6 +24,17 @@
       <label><span data-i18n="studentId"></span><input name="student_id" autocomplete="username" required></label>
       <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="current-password" required></label>
       <button data-i18n="login"></button>
+      <a href="#/register" data-i18n="registerLink"></a>
+    </form>
+  </section>
+  <section id="register" hidden>
+    <form id="register-form" class="card">
+      <label><span data-i18n="studentId"></span><input name="student_id" autocomplete="username" required minlength="3" maxlength="20"></label>
+      <label><span data-i18n="fullName"></span><input name="name" autocomplete="name" required maxlength="50"></label>
+      <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+      <small data-i18n="hint.user"></small>
+      <button data-i18n="register"></button>
+      <a href="#/login" data-i18n="backToLogin"></a>
     </form>
   </section>
   <section id="view" hidden></section>

@@ -10,7 +10,7 @@ const pick = (o, f) => o[`${f}_${L()}`];
 const fmtDate = (s) => new Intl.DateTimeFormat(getLang(), { dateStyle: 'medium' }).format(new Date(s.slice(0, 10) + 'T00:00:00'));
 const fmtNum = (n, d = 1) => new Intl.NumberFormat(getLang(), { maximumFractionDigits: d }).format(n);
 
-function show(key, kind) { msg = key ? { key, kind } : null; renderMsg(); }
+function show(key, kind) { msg = key ? { key, kind, hash: location.hash } : null; renderMsg(); } // msg survives only on the hash it was shown on
 function renderMsg() {
   const el = $('#msg');
   el.textContent = msg ? t(msg.key) : '';
@@ -84,6 +84,15 @@ const pages = {
       ${admin ? `<td><button data-set="approved" data-id="${r.id}">${t('approve')}</button> <button class="alt" data-set="rejected" data-id="${r.id}">${t('reject')}</button></td>` : ''}</tr>`).join('');
     return `${form}<h3>${t('myRequests')}</h3><div class="table-wrap"><table><tr>${admin ? `<th>${t('student')}</th>` : ''}<th>${t('type')}</th><th>${t('time')}</th><th>${t('reason')}</th><th>${t('status')}</th>${admin ? '<th></th>' : ''}</tr>${body}</table></div>`;
   },
+  async users() {
+    if (store.user.role !== 'admin') throw { code: 'FORBIDDEN' };
+    return `<form id="user-form" class="card"><h3>${t('users.new')}</h3>
+      <label>${t('studentId')}<input name="student_id" required minlength="3" maxlength="20"></label>
+      <label>${t('fullName')}<input name="name" required maxlength="50"></label>
+      <label>${t('password')}<input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72"></label>
+      <label>${t('role')}<select name="role"><option value="student">${t('role.student')}</option><option value="admin">${t('role.admin')}</option></select></label>
+      <small>${t('hint.user')}</small><button>${t('create')}</button></form>`;
+  },
   async grades() {
     const sems = ['112-1', '112-2', '113-1', '113-2', '114-1', '114-2', '115-1'];
     const sem = $('#sem')?.value || sems[0];
@@ -102,10 +111,10 @@ async function route() {
   const loggedIn = !!store.token;
   if (!loggedIn || !pages[page]) {
     if (loggedIn) { location.hash = '#/courses'; return; }
-    $('#login').hidden = false; $('#view').hidden = true; $('#nav').hidden = true; $('#logout').hidden = true;
+    $('#login').hidden = page === 'register'; $('#register').hidden = page !== 'register'; $('#view').hidden = true; $('#nav').hidden = true; $('#logout').hidden = true;
     return;
   }
-  $('#login').hidden = true; $('#nav').hidden = false; $('#logout').hidden = false; $('#view').hidden = false;
+  $('#login').hidden = true; $('#register').hidden = true; $('#nav-users').hidden = store.user.role !== 'admin'; $('#nav').hidden = false; $('#logout').hidden = false; $('#view').hidden = false;
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.hash === '#/' + page));
   try {
     const html = await pages[page]();
@@ -138,6 +147,12 @@ document.addEventListener('submit', async (e) => {
       const d = await api('/login', { method: 'POST', json: f });
       sessionStorage.setItem('token', d.token); sessionStorage.setItem('user', JSON.stringify(d.user));
       show(null); location.hash = '#/courses'; route();
+    } else if (e.target.id === 'register-form') {
+      await api('/register', { method: 'POST', json: Object.fromEntries(new FormData(e.target)) });
+      e.target.reset(); location.hash = '#/login'; route(); show('registered', 'ok');
+    } else if (e.target.id === 'user-form') {
+      await api('/users', { method: 'POST', json: Object.fromEntries(new FormData(e.target)) });
+      e.target.reset(); show('userCreated', 'ok');
     } else if (e.target.id === 'leave-form') {
       const body = new FormData(e.target);
       if (!body.get('file')?.size) body.delete('file');
@@ -165,9 +180,9 @@ document.addEventListener('compositionend', search);
 document.addEventListener('change', (e) => { if (e.target.id === 'sem') route(); });
 $('#lang').onchange = (e) => { setLang(e.target.value); renderMsg(); route(); };
 $('#logout').onclick = () => logout();
-window.addEventListener('hashchange', () => { show(null); route(); });
+window.addEventListener('hashchange', () => { if (msg && msg.hash !== location.hash) show(null); route(); });
 
 setLang(getLang());
 $('#lang').value = getLang();
-if (!store.token) location.hash = '#/login';
+if (!store.token && location.hash !== '#/register') location.hash = '#/login';
 route();

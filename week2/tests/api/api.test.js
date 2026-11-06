@@ -127,6 +127,31 @@ test('grades only own', async () => {
   assert.equal((await request(app).get('/api/grades?semester=x').set(as('a'))).status, 400);
 });
 
+test('register: creates student only, validates, rejects duplicates', async () => {
+  const good = { student_id: 'new0001', name: 'New Kid', password: 'longenough1', role: 'admin' };
+  const r = await request(app).post('/api/register').send(good);
+  assert.equal(r.status, 201);
+  assert.equal(r.body.role, 'student'); // client-supplied role ignored
+  const lg = await request(app).post('/api/login').send({ student_id: 'new0001', password: 'longenough1' });
+  assert.equal(lg.body.user.role, 'student');
+  assert.equal((await request(app).post('/api/register').send(good)).body.code, 'STUDENT_ID_TAKEN');
+  for (const bad of [{ ...good, student_id: 'x' }, { ...good, student_id: 'a b!', }, { ...good, student_id: 'ok123', password: 'short' },
+                     { ...good, student_id: 'ok124', name: '' }, { ...good, student_id: 'ok125', password: 'é'.repeat(37) }, { ...good, student_id: { a: 1 } }])
+    assert.equal((await request(app).post('/api/register').send(bad)).status, 400);
+});
+
+test('admin creates users; students cannot', async () => {
+  const body = { student_id: 'staff001', name: 'Staff', password: 'longenough1', role: 'admin' };
+  assert.equal((await request(app).post('/api/users').send(body)).status, 401);
+  assert.equal((await request(app).post('/api/users').set(as('a')).send(body)).status, 403);
+  const r = await request(app).post('/api/users').set(as('admin')).send(body);
+  assert.equal(r.status, 201);
+  assert.equal(r.body.role, 'admin');
+  const s = await request(app).post('/api/users').set(as('admin')).send({ ...body, student_id: 'stud0002', role: 'whatever' });
+  assert.equal(s.body.role, 'student');
+  assert.equal((await request(app).post('/api/users').set(as('admin')).send(body)).body.code, 'STUDENT_ID_TAKEN');
+});
+
 test('login rate limit and JWT_SECRET required', async () => {
   let last;
   for (let i = 0; i < 12; i++) last = await request(app).post('/api/login').send({ student_id: '111210529', password: 'bad' });
@@ -142,6 +167,6 @@ test('i18n: dictionaries have identical keys', () => {
 });
 
 test('i18n: every error code the API can return has a translation', () => {
-  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'TOO_MANY_ATTEMPTS', 'SERVER_ERROR'])
+  for (const c of ['INVALID_CREDENTIALS', 'UNAUTHORIZED', 'FORBIDDEN', 'ALREADY_ENROLLED', 'COURSE_FULL', 'TIME_CONFLICT', 'CREDIT_CAP', 'INVALID_INPUT', 'INVALID_FILE', 'FILE_TOO_LARGE', 'COURSE_NOT_FOUND', 'NOT_ENROLLED', 'NOT_FOUND', 'TOO_MANY_ATTEMPTS', 'STUDENT_ID_TAKEN', 'SERVER_ERROR'])
     assert.ok(dict.en['err.' + c], c);
 });

@@ -18,9 +18,17 @@
   - `npm run test:e2e` runs 6 Playwright tests on a separate port with a temp DB.
 - **README** has run and test steps and the demo accounts.
 
-## Test results (final run, after all fixes)
-- `npm test`: 13 pass, 0 fail.
-- `npm run test:e2e`: 6 pass, 0 fail.
+## Added after the first report: signup + admin user creation
+- `POST /api/register` (public): always creates a `student`; a client-supplied `role` is ignored. Own rate limit (10 per 15 min per IP).
+- `POST /api/users` (admin only, 403 for students): creates a `student` or `admin`.
+- Shared validation: ID 3–20 letters/digits, name 1–50 chars, password 8–72 bytes (bcrypt ignores bytes past 72). Duplicate ID returns `STUDENT_ID_TAKEN` (409).
+- UI: Register link and form on the login screen; a **Users** tab visible to admins only. Both in EN and 繁中.
+- Also fixed: the "logged out" message was being cleared right after it appeared.
+- Not added: email verification, password reset, and user-enumeration protection on signup (the duplicate-ID error reveals which IDs exist, which is normal for student-ID systems).
+
+## Test results (final run)
+- `npm test`: 15 pass, 0 fail.
+- `npm run test:e2e`: 7 pass, 0 fail.
 
 ## Bugs found while testing
 - `nav {display:flex}` overrode the `hidden` attribute, so the nav showed on the login screen. I fixed it with a `[hidden]` rule.
