@@ -35,7 +35,6 @@ Every demo account uses the password `demo1234`.
 
 | Student ID  | Role    |
 |-------------|---------|
-| `111210529` | student |
 | `111210555` | student |
 | `admin`     | admin   |
 
