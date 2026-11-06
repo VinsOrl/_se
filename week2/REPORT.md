@@ -1,7 +1,7 @@
-# HW2 Report: NQU Campus Portal
+# HW2 Report (week2/): NQU Campus Portal
 
-## Open question first
-- **Spec location.** `hw2/SPEC.md` did not exist. The spec is `week2/NQU_SPEC.md`, so I built it in `hw2/` at the repo root, as you instructed. If you wanted it under `week2/`, run `git mv hw2 week2/hw2` (or move its contents).
+## Notes
+- **Location.** The project lives in `week2/` (originally built as `hw2/`, then moved by you). Tests were re-run after the move and still pass.
 - **`.github/workflows/week1-pages.yml`** shows as deleted in `git status`. I did not do this and did not commit it. Check whether you meant to delete it.
 - **Uploaded proof images are stored but never served.** This is safest, but admins can't view them. Add an admin-only download route if you want that.
 
