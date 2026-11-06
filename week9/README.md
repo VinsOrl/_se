@@ -6,6 +6,8 @@ Everything lives in your browser — no account, no server to set up. Open it, a
 
 ---
 
+Live Cloudflare Dashboard: https://se.kelvin277orlin.workers.dev/
+
 ## What it does
 
 **Add assignments.** Give it a name and a due date. That's the form: two fields, one button. No course names, no priority levels, no categories. The app figures out what's urgent on its own.
@@ -115,7 +117,7 @@ Output goes to `dist/`. Serve it with any static file server.
 
 ### Cloudflare Pages (automatic)
 
-Connect your repo in the [Cloudflare Pages dashboard](https://dash.cloudflare.com/pages):
+Connect your repo in the [Cloudflare Pages dashboard](https://dash.cloudflare.com/):
 
 | Setting | Value |
 |---------|-------|
