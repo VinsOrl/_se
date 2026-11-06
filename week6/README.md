@@ -161,7 +161,7 @@ Starts from `nginx:alpine`, removes the default site, and copies in our `nginx.c
 | `depends_on: condition: service_healthy` | api, nginx | Start in the right order **and wait until ready**, not just started |
 | `restart: unless-stopped` | all | Auto-restart after crashes or reboots |
 
-Values like `${POSTGRES_PASSWORD:-apppass}` read from your `.env` file and fall back to a default.
+Values like `${POSTGRES_PASSWORD:?...}` are read from your `.env` file; `POSTGRES_PASSWORD` is required (copy `.env.example` to `.env` first).
 
 ### nginx reverse proxy rules (`nginx/nginx.conf`)
 

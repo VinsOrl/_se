@@ -26,7 +26,8 @@ app.get('/api/health', async (_req, res) => {
       time: r.rows[0].time,
     });
   } catch (err) {
-    res.status(503).json({ service: 'node-api', status: 'db-error', error: err.message });
+    console.error(err);
+    res.status(503).json({ service: 'node-api', status: 'db-error' });
   }
 });
 
@@ -35,7 +36,8 @@ app.get('/api/notes', async (_req, res) => {
     const r = await pool.query('SELECT id, content, created_at FROM notes ORDER BY id DESC');
     res.json(r.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'internal error' });
   }
 });
 
@@ -50,7 +52,8 @@ app.post('/api/notes', async (req, res) => {
     );
     res.status(201).json(r.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'internal error' });
   }
 });
 
@@ -61,7 +64,8 @@ app.delete('/api/notes/:id', async (req, res) => {
     const r = await pool.query('DELETE FROM notes WHERE id = $1', [id]);
     res.status(r.rowCount ? 204 : 404).end();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'internal error' });
   }
 });
 
