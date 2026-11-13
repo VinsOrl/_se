@@ -1,6 +1,6 @@
 [package]
 name = "slugread"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.73"
 description = "Tiny zero-dependency text helpers: slugify, truncate, word_count, reading_time."

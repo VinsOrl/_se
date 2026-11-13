@@ -1,6 +1,6 @@
 {
   "name": "slugread",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tiny zero-dependency text helpers: slugify, truncate, wordCount, readingTime.",
   "type": "module",
   "exports": {

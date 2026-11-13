@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "slugread"
-version = "0.1.0"
+version = "0.1.1"
 description = "Tiny zero-dependency text helpers: slugify, truncate, word_count, reading_time."
 readme = "README.md"
 license = "MIT"

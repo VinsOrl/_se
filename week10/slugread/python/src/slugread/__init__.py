@@ -5,7 +5,7 @@ import re
 import unicodedata
 
 __all__ = ["slugify", "truncate", "word_count", "reading_time"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 _MARKS = re.compile("[\u0300-\u036f]")
 _NON_ALNUM = re.compile("[^a-z0-9]+")
