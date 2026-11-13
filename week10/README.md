@@ -6,8 +6,6 @@ Every blog, docs site and CMS ends up needing the same four small text helpers: 
 
 ---
 
-Live Cloudflare Worker: https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!
-
 | Where | Package | Install |
 |-------|---------|---------|
 | PyPI | [slugread 0.1.1](https://pypi.org/project/slugread/) | `pip install slugread` |
