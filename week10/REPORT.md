@@ -127,7 +127,7 @@ Committed locally as you (your git config: VinsOrl) with no co-author or attribu
 | Target | Credential found | Problem |
 |---|---|---|
 | PyPI | No `TWINE_USERNAME`/`TWINE_PASSWORD`, no `~/.pypirc` | Blocks step 1 |
-| npm | `npm whoami` → **`whiteo4`** | ⚠️ That's **not `VinsOrl`**. If that's not your account, `npm publish` would put `slugread` under someone else's account. Please confirm, or `npm logout` + `npm login` as the right user |
+| npm | `npm whoami` → `whiteo4` | ✅ You confirmed `whiteo4` is your npm account, so npm is ready |
 | crates.io | No `CARGO_REGISTRY_TOKEN`, no `~/.cargo/credentials.toml` | Would block step 4 |
 | Cloudflare | `npx wrangler whoami` → "You are not authenticated" | Would block step 5 |
 
