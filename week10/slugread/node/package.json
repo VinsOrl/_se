@@ -1,0 +1,28 @@
+{
+  "name": "slugread",
+  "version": "0.1.0",
+  "description": "Tiny zero-dependency text helpers: slugify, truncate, wordCount, readingTime.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "types": "./index.d.ts",
+  "files": ["index.js", "index.d.ts"],
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": ["slug", "slugify", "truncate", "word-count", "reading-time"],
+  "author": "VinsOrl",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VinsOrl/_se.git",
+    "directory": "week10/slugread/node"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

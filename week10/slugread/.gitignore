@@ -1,0 +1,10 @@
+dist/
+target/
+node_modules/
+.venv/
+.wrangler/
+.env
+.dev.vars
+__pycache__/
+*.tgz
+Cargo.lock

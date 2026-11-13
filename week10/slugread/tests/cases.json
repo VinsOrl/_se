@@ -1,0 +1,38 @@
+[
+  {"fn": "slugify", "args": ["Hello, World!"], "out": "hello-world"},
+  {"fn": "slugify", "args": ["  Crème Brûlée  "], "out": "creme-brulee"},
+  {"fn": "slugify", "args": ["Ångström & Ñoño"], "out": "angstrom-nono"},
+  {"fn": "slugify", "args": ["İstanbul"], "out": "istanbul"},
+  {"fn": "slugify", "args": ["áb"], "out": "ab"},
+  {"fn": "slugify", "args": ["---already--slugged---"], "out": "already-slugged"},
+  {"fn": "slugify", "args": ["Rust_and_Python 3.12"], "out": "rust-and-python-3-12"},
+  {"fn": "slugify", "args": ["你好 world"], "out": "world"},
+  {"fn": "slugify", "args": ["straße"], "out": "stra-e"},
+  {"fn": "slugify", "args": [""], "out": ""},
+
+  {"fn": "truncate", "args": ["Hello world", 5], "out": "Hello…"},
+  {"fn": "truncate", "args": ["Hello", 5], "out": "Hello"},
+  {"fn": "truncate", "args": ["Hello", 10], "out": "Hello"},
+  {"fn": "truncate", "args": ["Hello", 0], "out": "…"},
+  {"fn": "truncate", "args": ["héllo wörld", 4], "out": "héll…"},
+  {"fn": "truncate", "args": ["😀😀😀", 2], "out": "😀😀…"},
+  {"fn": "truncate", "args": ["", 3], "out": ""},
+
+  {"fn": "word_count", "args": [""], "out": 0},
+  {"fn": "word_count", "args": ["Hello world"], "out": 2},
+  {"fn": "word_count", "args": ["  Hello,   world!  "], "out": 2},
+  {"fn": "word_count", "args": ["Hello — world"], "out": 2},
+  {"fn": "word_count", "args": ["don't stop-me now"], "out": 3},
+  {"fn": "word_count", "args": ["Line1\nLine2\tLine3"], "out": 3},
+  {"fn": "word_count", "args": ["你好世界"], "out": 4},
+  {"fn": "word_count", "args": ["我爱Rust和Python"], "out": 5},
+  {"fn": "word_count", "args": ["你好，世界。"], "out": 4},
+  {"fn": "word_count", "args": ["こんにちは"], "out": 5},
+
+  {"fn": "reading_time", "args": [""], "out": 0},
+  {"fn": "reading_time", "args": ["one word"], "out": 1},
+  {"fn": "reading_time", "args": ["one two three", 2], "out": 2},
+  {"fn": "reading_time", "args": ["one two three four", 2], "out": 2},
+  {"fn": "reading_time", "args": ["one two three", 3], "out": 1},
+  {"fn": "reading_time", "args": ["你好世界", 1], "out": 4}
+]

@@ -1,0 +1,13 @@
+{
+  "name": "slugread-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.156.0"
+  }
+}

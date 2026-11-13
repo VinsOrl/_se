@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slugread"
+version = "0.1.0"
+description = "Tiny zero-dependency text helpers: slugify, truncate, word_count, reading_time."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [{ name = "VinsOrl" }]
+keywords = ["slug", "slugify", "truncate", "word-count", "reading-time"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Text Processing",
+]
+
+[project.urls]
+Source = "https://github.com/VinsOrl/_se/tree/main/week10/slugread"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "README.md", "LICENSE"]

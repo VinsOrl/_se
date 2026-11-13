@@ -1,0 +1,18 @@
+[package]
+name = "slugread"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.73"
+description = "Tiny zero-dependency text helpers: slugify, truncate, word_count, reading_time."
+license = "MIT"
+authors = ["VinsOrl"]
+readme = "README.md"
+repository = "https://github.com/VinsOrl/_se"
+keywords = ["slug", "slugify", "truncate", "word-count", "text"]
+categories = ["text-processing"]
+include = ["src/**", "README.md", "LICENSE"]
+
+[dependencies]
+
+[dev-dependencies]
+serde_json = "1"
