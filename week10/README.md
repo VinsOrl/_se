@@ -6,13 +6,13 @@ Every blog, docs site and CMS ends up needing the same four small text helpers: 
 
 ---
 
-Live Worker: https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!
+Live Cloudflare Worker: https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!
 
 | Where | Package | Install |
 |-------|---------|---------|
-| PyPI | [slugread 0.1.0](https://pypi.org/project/slugread/) | `pip install slugread` |
+| PyPI | [slugread 0.1.1](https://pypi.org/project/slugread/) | `pip install slugread` |
 | npm | [slugread 0.1.0](https://www.npmjs.com/package/slugread) | `npm install slugread` |
-| crates.io | [slugread 0.1.0](https://crates.io/crates/slugread) | `cargo add slugread` |
+| crates.io | [slugread 0.1.1](https://crates.io/crates/slugread) | `cargo add slugread` |
 | Cloudflare | [slugread Worker](https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!) | nothing to install, just call it |
 
 Source: [VinsOrl/_se › week10/slugread](https://github.com/VinsOrl/_se/tree/main/week10/slugread).

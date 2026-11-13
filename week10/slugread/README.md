@@ -2,6 +2,13 @@
 
 One tiny zero-dependency text library, four ways: PyPI, npm, crates.io and a Cloudflare Worker.
 
+| Live | Link |
+|---|---|
+| PyPI | https://pypi.org/project/slugread/ |
+| npm | https://www.npmjs.com/package/slugread |
+| crates.io | https://crates.io/crates/slugread |
+| Cloudflare Worker | https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World! |
+
 | Function | Behavior |
 |---|---|
 | `slugify(text)` | lowercase, strip accents (`ß`→`ss`, `æ`→`ae`, `ø`→`o`, `œ`→`oe`, `đ`→`d`, `ł`→`l`), every run of non `a-z0-9` → `-`, trim `-` |
