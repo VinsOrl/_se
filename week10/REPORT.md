@@ -143,3 +143,21 @@ Pick one:
   - `cd worker && npx wrangler deploy`
 
 Then tell me and I'll verify and fill in the URLs here.
+
+### Retry (2026-11-13): stopped again at step 1
+
+| Target | Status now |
+|---|---|
+| Name | Still free (PyPI 404, npm 404, crates.io 404) |
+| npm | Ready (`whiteo4`, confirmed yours) |
+| crates.io | Ready (`~/.cargo/credentials.toml` present) |
+| Cloudflare | Ready (wrangler logged in via OAuth) |
+| **PyPI** | **Still missing.** `twine upload` gave the same `Credential not found for API token`. Nothing was uploaded |
+
+**Why:** the running Claude Code process started about 3.8 hours ago, before you exported `TWINE_*`. A process never picks up variables exported later in another terminal.
+
+Per your rule I stopped, and **did not run npm, cargo or wrangler.** Still nothing published.
+
+**Fix (pick one), then say "retry":**
+- Restart Claude Code from the terminal where `TWINE_USERNAME`/`TWINE_PASSWORD` are exported.
+- Or run just the PyPI step yourself from `week10/slugread/python` with `.venv/bin/twine upload dist/*`, and I'll continue with npm → cargo → wrangler.
