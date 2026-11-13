@@ -13,7 +13,7 @@ Live Worker: https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20W
 | PyPI | [slugread 0.1.0](https://pypi.org/project/slugread/) | `pip install slugread` |
 | npm | [slugread 0.1.0](https://www.npmjs.com/package/slugread) | `npm install slugread` |
 | crates.io | [slugread 0.1.0](https://crates.io/crates/slugread) | `cargo add slugread` |
-| Cloudflare | [slugread Worker](https://slugread.kelvin277orlin.workers.dev/) | nothing to install, just call it |
+| Cloudflare | [slugread Worker](https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!) | nothing to install, just call it |
 
 Source is also mirrored at [VinsOrl/_alg › homework/slugread](https://github.com/VinsOrl/_alg/tree/main/homework/slugread).
 
