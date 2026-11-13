@@ -8,6 +8,7 @@ const json = (body, status = 200, extra = {}) =>
     headers: {
       "content-type": "application/json; charset=utf-8",
       "x-content-type-options": "nosniff",
+      "access-control-allow-origin": "*", // public, no cookies/auth: safe to read cross-origin
       ...extra,
     },
   });

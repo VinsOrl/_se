@@ -12,6 +12,8 @@ assert.deepEqual(await get("/word_count?text=%E6%88%91%E7%88%B1Rust"), [200, { r
 assert.deepEqual(await get("/reading_time?text=a%20b%20c&wpm=2"), [200, { result: 2 }]);
 assert.deepEqual(await get("/reading_time?text=a"), [200, { result: 1 }]);
 assert.equal((await get("/slugify"))[0], 400);
+const r = await worker.fetch(new Request("http://x/slugify?text=a"));
+assert.equal(r.headers.get("access-control-allow-origin"), "*");
 for (const bad of ["", "-1", "1.5", "abc", "1e3", "9999999999"]) {
   assert.equal((await get(`/truncate?text=x&n=${bad}`))[0], 400, `n=${bad}`);
 }

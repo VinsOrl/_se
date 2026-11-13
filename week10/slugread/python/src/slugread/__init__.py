@@ -9,6 +9,10 @@ __version__ = "0.1.0"
 
 _MARKS = re.compile("[\u0300-\u036f]")
 _NON_ALNUM = re.compile("[^a-z0-9]+")
+# Letters NFD can't split into base + accent: ß æ ø œ đ ł.
+_TRANSLIT = str.maketrans(
+    {"ß": "ss", "æ": "ae", "ø": "o", "œ": "oe", "đ": "d", "ł": "l"}
+)
 # Same whitespace set as Rust's char::is_whitespace, so all languages split identically.
 _WS = re.compile("[\t-\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+")
 _CJK = re.compile(
@@ -17,8 +21,9 @@ _CJK = re.compile(
 
 
 def slugify(text: str) -> str:
-    """Lowercase, strip accents, turn every run of non [a-z0-9] into '-', trim '-'."""
-    text = _MARKS.sub("", unicodedata.normalize("NFD", text.lower()))
+    """Lowercase, strip accents (ß→ss, æ→ae, ø→o, œ→oe, đ→d, ł→l), turn every run
+    of non [a-z0-9] into '-', trim '-'."""
+    text = _MARKS.sub("", unicodedata.normalize("NFD", text.lower())).translate(_TRANSLIT)
     return _NON_ALNUM.sub("-", text).strip("-")
 
 

@@ -15,7 +15,7 @@ word_count("我爱Rust和Python")   # 5  (each CJK character is one word)
 reading_time("one two three", 2) # 2  (minutes, rounded up; default wpm=200)
 ```
 
-- `slugify` keeps only `a-z0-9` after stripping accents; other characters become `-`.
+- `slugify` keeps only `a-z0-9` after stripping accents (`ß`→`ss`, `æ`→`ae`, `ø`→`o`, `œ`→`oe`, `đ`→`d`, `ł`→`l`); other characters become `-`.
 - `truncate` counts Unicode code points; `n` must be `>= 0`.
 - `reading_time` needs `wpm > 0`.
 

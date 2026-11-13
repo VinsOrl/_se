@@ -2,13 +2,16 @@ const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\u{20000}-\u{2
 // Same whitespace set as Rust's char::is_whitespace, so all languages split identically.
 const WS = /[\t-\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/;
 const ALNUM = /[\p{L}\p{N}]/u;
+// Letters NFD can't split into base + accent: ß æ ø œ đ ł.
+const TRANSLIT = { "ß": "ss", "æ": "ae", "ø": "o", "œ": "oe", "đ": "d", "ł": "l" };
 
-/** Lowercase, strip accents, turn every run of non [a-z0-9] into '-', trim '-'. */
+/** Lowercase, strip accents (ß→ss, æ→ae, ø→o, œ→oe, đ→d, ł→l), turn every run of non [a-z0-9] into '-', trim '-'. */
 export function slugify(text) {
   return text
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[ßæøœđł]/g, (c) => TRANSLIT[c])
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }

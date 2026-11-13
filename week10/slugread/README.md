@@ -4,7 +4,7 @@ One tiny zero-dependency text library, four ways: PyPI, npm, crates.io and a Clo
 
 | Function | Behavior |
 |---|---|
-| `slugify(text)` | lowercase, strip accents, every run of non `a-z0-9` → `-`, trim `-` |
+| `slugify(text)` | lowercase, strip accents (`ß`→`ss`, `æ`→`ae`, `ø`→`o`, `œ`→`oe`, `đ`→`d`, `ł`→`l`), every run of non `a-z0-9` → `-`, trim `-` |
 | `truncate(text, n)` | cut to `n` code points, add `…` if cut |
 | `word_count(text)` | count words; each CJK character (Han, Hiragana, Katakana) is one word |
 | `reading_time(text, wpm=200)` | minutes, rounded up |

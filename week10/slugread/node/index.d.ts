@@ -1,4 +1,4 @@
-/** Lowercase, strip accents, turn every run of non [a-z0-9] into '-', trim '-'. */
+/** Lowercase, strip accents (ß→ss, æ→ae, ø→o, œ→oe, đ→d, ł→l), turn every run of non [a-z0-9] into '-', trim '-'. */
 export function slugify(text: string): string;
 /** Cut to n characters (code points) and append '…' if anything was cut. Throws RangeError if n < 0. */
 export function truncate(text: string, n: number): string;

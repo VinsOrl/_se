@@ -24,7 +24,8 @@ fn base_letter(c: char) -> Option<char> {
     (b != b'_').then_some(b as char)
 }
 
-/// Lowercase, strip accents, turn every run of non `[a-z0-9]` into `-`, trim `-`.
+/// Lowercase, strip accents (`ß`→`ss`, `æ`→`ae`, `ø`→`o`, `œ`→`oe`, `đ`→`d`, `ł`→`l`),
+/// turn every run of non `[a-z0-9]` into `-`, trim `-`.
 ///
 /// ```
 /// assert_eq!(slugread::slugify("Crème Brûlée!"), "creme-brulee");
@@ -36,13 +37,24 @@ pub fn slugify(text: &str) -> String {
         if ('\u{300}'..='\u{36f}').contains(&c) {
             continue; // combining accent: drop it
         }
-        match base_letter(c) {
-            Some(b) => {
+        let mut buf = [0u8; 4];
+        // Letters NFD can't split into base + accent (incl. accented forms ǣ ǽ ǿ).
+        let piece = match c {
+            'ß' => Some("ss"),
+            'æ' | 'ǣ' | 'ǽ' => Some("ae"),
+            'œ' => Some("oe"),
+            'ø' | 'ǿ' => Some("o"),
+            'đ' => Some("d"),
+            'ł' => Some("l"),
+            _ => base_letter(c).map(|b| &*b.encode_utf8(&mut buf)),
+        };
+        match piece {
+            Some(p) => {
                 if gap && !out.is_empty() {
                     out.push('-');
                 }
                 gap = false;
-                out.push(b);
+                out.push_str(p);
             }
             None => gap = true,
         }
