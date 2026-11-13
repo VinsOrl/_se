@@ -1,6 +1,6 @@
 # Week 10 report: `slugread`, one tiny package published 4 ways
 
-Status: **code pushed to `VinsOrl/_alg` (`homework/slugread/`). Publishing STOPPED at step 1: `twine upload` found no PyPI credentials. Nothing is published on any registry or on Cloudflare.** See Round 3.
+Status: ✅ **slugread 0.1.0 is published on PyPI, npm and crates.io, and deployed as a Cloudflare Worker.** Code: https://github.com/VinsOrl/_alg/tree/main/homework/slugread. Final results are in "Published" at the end.
 
 Code lives in [`slugread/`](slugread/). The layout follows the spec, plus `worker/package.json` and `worker/test.js` (see the security section for why).
 
@@ -191,3 +191,28 @@ Notes:
 - The cargo warning `ignoring test cases` is intentional: the integration test reads `../../tests/cases.json`, which isn't in the crate, so `tests/` is excluded from the package.
 
 **To continue:** go to https://crates.io/settings/profile, add your email and click the verification link crates.io emails you. Then say "done" and I'll re-check the name, run `cargo publish`, then `npx wrangler deploy`.
+
+## ✅ Published (2026-11-13), slugread 0.1.0
+
+| Target | Version | URL | Verified |
+|---|---|---|---|
+| PyPI | 0.1.0 | https://pypi.org/project/slugread/0.1.0/ | wheel + sdist SHA-256 match the local build |
+| npm | 0.1.0 (`latest`) | https://www.npmjs.com/package/slugread | shasum `51f9b562…` matches the local build, and `index.js` is byte-identical |
+| crates.io | 0.1.0 | https://crates.io/crates/slugread (docs will appear at https://docs.rs/slugread once docs.rs builds) | `cargo publish` from the pushed `_alg` checkout succeeded. Checksum `f4a39798…`. Repository link → `_alg/tree/main/homework/slugread` |
+| Cloudflare Worker | version ID `5a9b6aab-a6c0-4242-82e1-8d2191f8b01c` (wrangler 4.156.0) | https://slugread.kelvin277orlin.workers.dev | live GETs: `/slugify?text=Æsir Straße` → `aesir-strasse`, `/truncate?text=Hello world&n=5` → `Hello…`, `/word_count?text=我爱Rust和Python` → `5`, `/reading_time?text=one two three&wpm=2` → `2`, `n=-1` → 400. `Access-Control-Allow-Origin: *` present |
+| Source | `_alg` main `635382d` | https://github.com/VinsOrl/_alg/tree/main/homework/slugread | npm and cargo were published from that exact checkout |
+
+Try it:
+```bash
+pip install slugread
+npm install slugread
+cargo add slugread
+curl "https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello%20World"
+```
+
+### Leftovers / notes
+- npm still lists the placeholder **`0.0.0-stage`** from npm's processing step. It's harmless because `latest` = 0.1.0. Remove it with `npm unpublish slugread@0.0.0-stage` within 72 hours if you like (not done).
+- Versions are permanent: the next release must be **0.1.1 or higher** on every registry. Bump all 4 places (`pyproject.toml`, `__init__.py __version__`, `package.json`, `Cargo.toml`).
+- Tokens: the cargo token in `~/.cargo/credentials.toml` and the wrangler OAuth login were created by you and are still on disk. Consider revoking or rescoping the cargo token (`publish-update` only) now that the crate exists. Likewise, scope the PyPI token to `slugread` only.
+- The `_alg` copy and this `_se` copy are now two places for the same code. Future changes should be made in one and synced to the other.
+- wrangler reports 4.161.0 is available. Staying pinned at 4.156.0 is fine.
