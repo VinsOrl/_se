@@ -161,3 +161,18 @@ Per your rule I stopped, and **did not run npm, cargo or wrangler.** Still nothi
 **Fix (pick one), then say "retry":**
 - Restart Claude Code from the terminal where `TWINE_USERNAME`/`TWINE_PASSWORD` are exported.
 - Or run just the PyPI step yourself from `week10/slugread/python` with `.venv/bin/twine upload dist/*`, and I'll continue with npm → cargo → wrangler.
+
+### Publish run 3 (2026-11-13): PyPI live, stopped at npm (2FA)
+
+| Step | Result |
+|---|---|
+| 1. PyPI (you ran `twine`) | ✅ **Published.** https://pypi.org/project/slugread/0.1.0/ (version 0.1.0, Source URL correct). The uploaded file SHA-256s match the local build: wheel `b7d96e98…`, sdist `fcdf4f26…` |
+| 2. npm | ❌ **FAILED.** I ran `npm publish --access public` from the pushed `_alg` checkout (`635382d`, `node/` identical to local, tests OK) and got: `E403 Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.` Nothing was published (registry still 404) |
+| 3. crates.io | Not run (stopped) |
+| 4. Cloudflare | Not run (stopped) |
+
+**To continue:** npm needs your 2FA one-time code, so it's best if you run it yourself:
+```bash
+cd ~/Documents/software_115a/week10/slugread/node && npm publish --access public
+```
+npm will prompt for the code, or you can pass `--otp=123456`. The local `node/` is byte-identical to the pushed `homework/slugread/node`. Then say "done" and I'll verify and run `cargo publish` and `npx wrangler deploy`.
