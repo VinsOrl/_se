@@ -229,7 +229,7 @@ curl "https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello%20World"
 |---|---|
 | PyPI | ✅ 0.1.1 published (uploaded by you), Source link → `_se` |
 | npm | ⏸ Deferred. `npm publish` returned `E403 … account has been temporarily suspended due to a recent security-sensitive action`. npm `latest` is still 0.1.0. Retry later from `slugread/node`: `npm publish --access public` |
-| crates.io | ⏸ Not published yet (waiting on your go after the npm failure) |
+| crates.io | ✅ 0.1.1 published (your go after the npm failure), repository → `_se` |
 | Worker | No redeploy needed (only versions and URLs changed) |
 
 The version bump is pushed to `_se` as `a4ae603`.
