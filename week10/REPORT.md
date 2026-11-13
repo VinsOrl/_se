@@ -222,3 +222,14 @@ curl "https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello%20World"
 - slugread now lives only in `VinsOrl/_se` at `week10/slugread`. The `homework/slugread/` copy was deleted from `VinsOrl/_alg`.
 - `pyproject.toml`, `Cargo.toml` and `package.json` now point to `https://github.com/VinsOrl/_se` (npm `directory`: `week10/slugread/node`).
 - The published 0.1.0 packages still link to `_alg`; that link is broken until the next version is published.
+
+## 0.1.1 publish (2026-11-13): source URLs point to `_se`
+
+| Target | Status |
+|---|---|
+| PyPI | ✅ 0.1.1 published (uploaded by you), Source link → `_se` |
+| npm | ⏸ Deferred. `npm publish` returned `E403 … account has been temporarily suspended due to a recent security-sensitive action`. npm `latest` is still 0.1.0. Retry later from `slugread/node`: `npm publish --access public` |
+| crates.io | ⏸ Not published yet (waiting on your go after the npm failure) |
+| Worker | No redeploy needed (only versions and URLs changed) |
+
+The version bump is pushed to `_se` as `a4ae603`.
