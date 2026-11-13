@@ -15,7 +15,7 @@ Live Worker: https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20W
 | crates.io | [slugread 0.1.0](https://crates.io/crates/slugread) | `cargo add slugread` |
 | Cloudflare | [slugread Worker](https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello,%20World!) | nothing to install, just call it |
 
-Source is also mirrored at [VinsOrl/_alg › homework/slugread](https://github.com/VinsOrl/_alg/tree/main/homework/slugread).
+Source: [VinsOrl/_se › week10/slugread](https://github.com/VinsOrl/_se/tree/main/week10/slugread).
 
 ---
 
@@ -203,6 +203,7 @@ There's no rate limiting. Cloudflare's free plan limits requests per day, and th
 - **ASCII slugs only.** Chinese, Japanese, Cyrillic, Arabic and so on are dropped from slugs instead of transliterated.
 - **`word_count` is a heuristic.** Each CJK character counts as one word, which overcounts Chinese words like `電腦` (one word, two characters). Doing it properly needs a dictionary.
 - **`truncate` counts code points, not what you see on screen.** A flag emoji or a letter with a separate combining accent is more than one code point, so it can be split.
+- **The 0.1.0 package pages link to an old source location.** Their "Source"/"Repository" link points to `VinsOrl/_alg`, where the code no longer lives. A published version can't be edited, so this is fixed only when the next version is published with the `_se` URLs.
 - **The npm page briefly showed `0.0.0-stage`.** That's an npm placeholder that appeared while the real `0.1.0` was still processing. `latest` points to `0.1.0`.
 
 ---

@@ -216,3 +216,9 @@ curl "https://slugread.kelvin277orlin.workers.dev/slugify?text=Hello%20World"
 - Tokens: the cargo token in `~/.cargo/credentials.toml` and the wrangler OAuth login were created by you and are still on disk. Consider revoking or rescoping the cargo token (`publish-update` only) now that the crate exists. Likewise, scope the PyPI token to `slugread` only.
 - The `_alg` copy and this `_se` copy are now two places for the same code. Future changes should be made in one and synced to the other.
 - wrangler reports 4.161.0 is available. Staying pinned at 4.156.0 is fine.
+
+## Moved to `_se` (2026-11-13)
+
+- slugread now lives only in `VinsOrl/_se` at `week10/slugread`. The `homework/slugread/` copy was deleted from `VinsOrl/_alg`.
+- `pyproject.toml`, `Cargo.toml` and `package.json` now point to `https://github.com/VinsOrl/_se` (npm `directory`: `week10/slugread/node`).
+- The published 0.1.0 packages still link to `_alg`; that link is broken until the next version is published.
