@@ -1,6 +1,6 @@
 # Week 10 report: `slugread`, one tiny package published 4 ways
 
-Status: **steps 0–4 done, round-2 decisions applied. Nothing published.** It's waiting for your "go" plus one new blocker: the GitHub repo doesn't exist yet (see Blockers).
+Status: **code pushed to `VinsOrl/_alg` (`homework/slugread/`). Publishing STOPPED at step 1: `twine upload` found no PyPI credentials. Nothing is published on any registry or on Cloudflare.** See Round 3.
 
 Code lives in [`slugread/`](slugread/). The layout follows the spec, plus `worker/package.json` and `worker/test.js` (see the security section for why).
 
@@ -86,7 +86,7 @@ Nothing needed fixing.
 
 ## Blockers (yours)
 
-1. **New: create `github.com/VinsOrl/slugread`.** It returns 404 today, so the "Repository"/"Source" links on PyPI, npm and crates.io would be dead. Publishing still works without it, but the links can't be changed without releasing a new version. The metadata assumes the repo root is the current `slugread/` folder (npm `directory: "node"`). Tell me when it exists and I can push `slugread/` there. I haven't pushed anything anywhere.
+1. ~~**New: create `github.com/VinsOrl/slugread`.**~~ *Superseded in round 3: the code now lives in `VinsOrl/_alg`.* It returns 404 today, so the "Repository"/"Source" links on PyPI, npm and crates.io would be dead. Publishing still works without it, but the links can't be changed without releasing a new version. The metadata assumes the repo root is the current `slugread/` folder (npm `directory: "node"`). Tell me when it exists and I can push `slugread/` there. I haven't pushed anything anywhere.
 2. **PyPI**: account + API token. After the first upload, replace it with a token scoped to `slugread` only.
 3. **npm**: `npm login` with 2FA on.
 4. **crates.io**: GitHub login + token with `publish-new`/`publish-update` scope only, then `cargo login`.
@@ -101,3 +101,45 @@ None left from round 1. All 6 are answered and applied (see the round 2 table). 
 ## Git
 
 Committed locally as you (your git config: VinsOrl) with no co-author or attribution lines. **Not pushed.**
+
+## Round 3 (2026-11-13): push + publish attempt
+
+### Done
+| Step | Result |
+|---|---|
+| Push access to `VinsOrl/_alg` | OK. `git ls-remote` works, and `gh` (logged in as VinsOrl) reports `viewerPermission: ADMIN`. Default branch is `main` |
+| Repository URL | `pyproject.toml` `Source` and `Cargo.toml` `repository` → `https://github.com/VinsOrl/_alg/tree/main/homework/slugread`. `package.json` `repository.url` → `https://github.com/VinsOrl/_alg` with `directory: "homework/slugread/node"`. No README mentioned a URL, so none changed |
+| Tests | Python OK (38 cases + bad args), Node 38 cases OK, Worker OK, Rust 2 integration + 4 doctests OK |
+| Rebuild | `python -m build` + `twine check` PASSED (wheel metadata shows the new Source URL). `npm pack --dry-run` 5 files, 2.6 kB. `cargo package` 7 files, verify OK |
+| Push | Cloned `_alg` into a temporary scratch folder and added the committed `slugread/` (25 files, via `git archive`, so no venv, build or `node_modules`). Committed as VinsOrl with no attribution, then pushed: `main` `c0a2b8d → 635382d`. Code: https://github.com/VinsOrl/_alg/tree/main/homework/slugread |
+| Local commit | The URL change is also committed in this `_se` repo (not pushed) |
+
+### Publishing: stopped at step 1
+
+1. **Name re-check:** still free. PyPI 404, npm 404, crates.io 404.
+2. **`twine upload dist/*`: FAILED.** `ERROR NonInteractive: Credential not found for API token.` Nothing was uploaded (PyPI still returns 404 for `slugread`).
+3. Per your rule, I **did not run** `npm publish`, `cargo publish` or `wrangler deploy`.
+
+**Published URLs / versions: none yet.** 0.1.0 is unused on every registry.
+
+### What I found in the shell Claude Code runs in (names only, no values)
+
+| Target | Credential found | Problem |
+|---|---|---|
+| PyPI | No `TWINE_USERNAME`/`TWINE_PASSWORD`, no `~/.pypirc` | Blocks step 1 |
+| npm | `npm whoami` → **`whiteo4`** | ⚠️ That's **not `VinsOrl`**. If that's not your account, `npm publish` would put `slugread` under someone else's account. Please confirm, or `npm logout` + `npm login` as the right user |
+| crates.io | No `CARGO_REGISTRY_TOKEN`, no `~/.cargo/credentials.toml` | Would block step 4 |
+| Cloudflare | `npx wrangler whoami` → "You are not authenticated" | Would block step 5 |
+
+My guess is the credentials are exported in a different terminal. Claude Code's shell doesn't inherit variables from your other terminals.
+
+### To continue
+Pick one:
+- **Export the credentials where Claude Code can see them.** For example, start Claude Code from a terminal that has `TWINE_USERNAME=__token__`, `TWINE_PASSWORD=pypi-…` and `CARGO_REGISTRY_TOKEN=…`, and has run `npx wrangler login` and `npm login` (as VinsOrl). Then say "continue publishing" and I'll pick up from step 1 (name re-check → twine → npm → cargo → wrangler).
+- **Or run the commands yourself** from `week10/slugread/`:
+  - `python/.venv/bin/twine upload python/dist/*` (the `dist/` files are already built and checked)
+  - `cd node && npm publish --access public`
+  - `cd rust && cargo publish`
+  - `cd worker && npx wrangler deploy`
+
+Then tell me and I'll verify and fill in the URLs here.
