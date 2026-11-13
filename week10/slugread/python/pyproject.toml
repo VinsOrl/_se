@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 [project.urls]
-Source = "https://github.com/VinsOrl/slugread"
+Source = "https://github.com/VinsOrl/_alg/tree/main/homework/slugread"
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "README.md", "LICENSE"]
