@@ -1,4 +1,4 @@
-# Week 10 SPEC — Build an Agent from an LLM API (learn it with AI)
+# Week 11 SPEC — Build an Agent from an LLM API (learn it with AI)
 
 Repo: VinsOrl/_se, folder `week11/` at repo root, commit on main.
 
