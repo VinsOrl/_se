@@ -308,8 +308,7 @@ Run it from inside `week11/`. The tools can only see files under the folder you 
 ```
 week11/
 ├── README.md                  # This file
-├── REPORT.md                  # Review + audit findings, questions
-├── week10-SPEC.md             # The assignment spec
+├── PROMPT.md                  # The assignment spec
 ├── book/                      # 5 short chapters in my own words
 ├── conversations/
 │   ├── 00-how-to-ask.md       # Question templates
