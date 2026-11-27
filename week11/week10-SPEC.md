@@ -1,16 +1,16 @@
 # Week 10 SPEC — Build an Agent from an LLM API (learn it with AI)
 
-Repo: VinsOrl/_se, folder `week10/` at repo root, commit on main.
+Repo: VinsOrl/_se, folder `week11/` at repo root, commit on main.
 
 ## Goal
 Teach myself how an agent is built from a plain LLM API. Learning cycle:
 conversation -> programming -> conversation -> writing a book -> ...
 Keep everything SIMPLE. No frameworks, no over-engineering.
 
-## Deliverables (inside week10/)
+## Deliverables (inside week11/)
 
 ```
-week10/
+week11/
 ├── README.md              # the cycle, layout, how to run, one-line core idea
 ├── book/                  # 5 short chapters, my-words style, each with self-check + "still confusing"
 │   ├── 01-what-is-an-agent.md
@@ -47,4 +47,4 @@ week10/
 - When done: use /code-review-skill to review, then /security-audit and fix anything needed (key handling, sandbox, no eval).
 - Run `pytest -q`; must pass.
 - Git: commit authored as me (GitHub VinsOrl). NO Claude co-author, NO Claude attribution lines in commits.
-- Put reports, findings and questions in `week10/REPORT.md`. Text replies: 1-2 lines telling me to read it.
+- Put reports, findings and questions in `week11/REPORT.md`. Text replies: 1-2 lines telling me to read it.
