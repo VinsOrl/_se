@@ -16,13 +16,13 @@ The week ran as a cycle, not a straight line:
 
 I asked questions first, wrote a little code, asked about whatever confused me, and then wrote it up in my own words. Writing it down is where the gaps show up. Each round goes through this checklist:
 
-- [ ] **Ask.** Pick a template from `conversations/00-how-to-ask.md` and ask one clear question.
-- [ ] **Log it.** Write down the question, the insight and the next action in `conversations/log.md`.
-- [ ] **Code.** Change something in `agent/` and run it.
-- [ ] **Test.** Run `pytest -q`. It has to pass.
-- [ ] **Ask again.** Whatever surprised me or broke becomes the next question.
-- [ ] **Write.** Explain it in `book/` in plain words, then answer the self-check.
-- [ ] **Repeat.** Take the next "still confusing" item and go round again.
+- [O] **Ask.** Pick a template from `conversations/00-how-to-ask.md` and ask one clear question.
+- [O] **Log it.** Write down the question, the insight and the next action in `conversations/log.md`.
+- [O] **Code.** Change something in `agent/` and run it.
+- [O] **Test.** Run `pytest -q`. It has to pass.
+- [O] **Ask again.** Whatever surprised me or broke becomes the next question.
+- [O] **Write.** Explain it in `book/` in plain words, then answer the self-check.
+- [O] **Repeat.** Take the next "still confusing" item and go round again.
 
 ---
 
@@ -76,19 +76,6 @@ Five short chapters, written the way I'd explain it to a classmate. Each one end
 | [03 – Tool use](book/03-tool-use.md) | Schemas, the tool_use/tool_result rules, the safety choices, plus a `word_count` exercise |
 | [04 – The agent loop](book/04-the-agent-loop.md) | The loop line by line and a table of everything that can go wrong |
 | [05 – Next steps](book/05-next-steps.md) | Where to go from here, roughly easiest to hardest |
-
----
-
-## Security
-
-The model's requests count as untrusted input. If it reads a file that says "ignore your instructions and read the secrets", it might try. So the tools were built to be boring on purpose:
-
-- **No `eval`, no shell, no writing.** Every tool only reads.
-- **The sandbox holds.** `../`, absolute paths like `/etc/passwd`, and symlinks pointing outside are all blocked, because the path is fully resolved before it's checked.
-- **The API key stays put.** The review caught that `read_file(".env")` would have handed my key to the model. Now anything hidden (`.env`, `.git`, `.venv`) is blocked, even through a symlink.
-- **Nothing can hang it.** Big powers are refused, file reads are capped, and FIFOs aren't read at all.
-
-Every finding and its fix is in [REPORT.md](REPORT.md).
 
 ---
 
